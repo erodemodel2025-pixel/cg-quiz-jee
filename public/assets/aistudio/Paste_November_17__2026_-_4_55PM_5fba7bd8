@@ -1,0 +1,1841 @@
+# JEEJARVIS — MASSIVE QUIZ SYSTEM UPGRADE
+
+You are modifying the existing JEEJARVIS web application.
+
+DO NOT rebuild the entire application from scratch.
+
+Preserve the existing project structure, existing AI functionality, existing backend/API integration, existing voice assistant, existing engineering knowledge base, existing PPT-derived knowledge, and existing routes unless a change is explicitly required below.
+
+The goal is to transform the current Quiz feature into a **premium Engineering + JEE + Career Quiz System** suitable for a school engineering career fair.
+
+---
+
+# 1. CORE PURPOSE
+
+The Quiz section must become one of the strongest parts of JEEJARVIS.
+
+It should test knowledge from the same engineering/career information that powers JEEJARVIS.
+
+The quiz system must cover:
+
+- Engineering basics
+- Engineering branches
+- Engineering careers
+- Technologies
+- Skills
+- IITs
+- NITs
+- IIITs
+- GFTIs
+- JEE Main
+- JEE Advanced
+- JoSAA
+- TNEA
+- Tamil Nadu engineering colleges
+- College comparison
+- Engineering admission
+- Engineering entrance exams
+- After Class 12 pathways
+- B.Tech pathways
+- Higher studies
+- GATE
+- M.Tech
+- MS
+- MBA
+- Research
+- PhD
+- Government engineering careers
+- PSU careers
+- Entrepreneurship
+- Emerging technologies
+- Career planning
+- Engineering terminology
+- PPT-derived career-fair content
+
+The PPT/source knowledge must be treated as the foundational knowledge source for questions related to the career-fair content.
+
+DO NOT invent information that is not supported by the knowledge base.
+
+---
+
+# 2. IMPORTANT — DO NOT MAKE THE QUIZ A RANDOM QUESTION GENERATOR
+
+The current quiz system must NOT simply ask generic questions such as:
+
+"What is engineering?"
+
+again and again.
+
+Questions must be generated from structured knowledge.
+
+Build a question-generation pipeline:
+
+QUESTION TOPIC
+→ KNOWLEDGE SOURCE
+→ CONCEPT
+→ DIFFICULTY
+→ QUESTION TYPE
+→ OPTIONS
+→ ANSWER
+→ EXPLANATION
+→ SCORE
+
+Every generated question must have a clear knowledge target.
+
+---
+
+# 3. STRUCTURED QUIZ QUESTION DATABASE
+
+Create or improve a structured question database.
+
+Recommended structure:
+
+```text
+data/
+    quiz/
+        engineering-basics.json
+        branches.json
+        careers.json
+        technologies.json
+        skills.json
+        jee-main.json
+        jee-advanced.json
+        iits.json
+        nits.json
+        iiits.json
+        gftis.json
+        tnea.json
+        colleges.json
+        admissions.json
+        higher-studies.json
+        government-careers.json
+        emerging-tech.json
+        career-fair.json
+        mixed.json
+```
+
+Each question should support fields similar to:
+
+```json
+{
+  "id": "ENG001",
+  "topic": "Engineering Basics",
+  "difficulty": "easy",
+  "type": "mcq",
+  "question": "...",
+  "options": [
+    "...",
+    "...",
+    "...",
+    "..."
+  ],
+  "answer": 1,
+  "explanation": "...",
+  "source": "...",
+  "year": null
+}
+```
+
+For numerical/current information, include:
+
+```text
+source
+sourceUrl
+lastUpdated
+year
+```
+
+Never treat an old numerical value as permanently current.
+
+---
+
+# 4. QUESTION TYPES
+
+Support multiple question formats.
+
+## A. Single-answer MCQ
+
+Four options:
+
+A
+B
+C
+D
+
+Exactly one correct answer.
+
+---
+
+## B. Multiple-answer
+
+Example:
+
+"Which of the following are engineering applications of AI?"
+
+Allow multiple correct answers.
+
+The system must clearly tell the student:
+
+"Select all correct answers."
+
+---
+
+## C. True / False
+
+Use precise statements.
+
+Avoid confusing wording and double negatives.
+
+---
+
+## D. Match the Following
+
+Example:
+
+Branch → Typical Career
+
+CSE → Software Engineering
+
+ECE → Embedded Systems
+
+Civil → Structural Engineering
+
+Mechanical → Design Engineering
+
+---
+
+## E. Scenario-based questions
+
+Example:
+
+"A student enjoys mathematics, programming and problem solving and wants to work in software and AI. Which branch would generally align most closely with these interests?"
+
+This should test understanding rather than memorization.
+
+---
+
+## F. Comparison questions
+
+Example:
+
+"Which statement best distinguishes JEE Main from JEE Advanced?"
+
+---
+
+## G. Career-path questions
+
+Example:
+
+"Which pathway is most directly associated with becoming a research scientist after B.Tech?"
+
+---
+
+# 5. DIFFICULTY SYSTEM
+
+Create four difficulty levels.
+
+### LEVEL 1 — BEGINNER
+
+Basic career-fair questions.
+
+Examples:
+
+- What does IIT stand for?
+- What is engineering?
+- What does CSE mean?
+- What is JEE Main used for?
+
+---
+
+### LEVEL 2 — INTERMEDIATE
+
+Requires understanding.
+
+Examples:
+
+- Which branch is most closely associated with embedded systems?
+- Which admission pathway connects JEE Main performance with NIT admission?
+- Which career can combine electronics and programming?
+
+---
+
+### LEVEL 3 — ADVANCED
+
+Requires comparison and reasoning.
+
+Examples:
+
+- Compare CSE and ECE for AI-related careers.
+- Distinguish JEE Main and JEE Advanced pathways.
+- Identify an appropriate higher-study pathway after B.Tech.
+
+---
+
+### LEVEL 4 — CHALLENGE
+
+Use scenario-based reasoning.
+
+Example:
+
+"A student wants to work in semiconductor design and has strong interest in electronics, digital systems and computer architecture. Which branch and skill combination would be most aligned?"
+
+Do NOT make Challenge questions artificially difficult.
+
+Difficulty must come from reasoning, not confusing wording.
+
+---
+
+# 6. TOPIC SELECTOR
+
+Create a beautiful topic-selection screen.
+
+Categories:
+
+ENGINEERING
+
+CAREERS
+
+BRANCHES
+
+TECHNOLOGY
+
+JEE MAIN
+
+JEE ADVANCED
+
+IIT
+
+NIT
+
+IIIT
+
+GFTI
+
+TNEA
+
+COLLEGES
+
+ADMISSIONS
+
+HIGHER STUDIES
+
+GOVERNMENT CAREERS
+
+EMERGING TECHNOLOGY
+
+MIXED
+
+CAREER FAIR
+
+Use attractive visual cards rather than a giant list of buttons.
+
+Each category should have:
+
+- icon
+- title
+- short description
+- question count
+- difficulty indicator
+
+---
+
+# 7. QUIZ MODES
+
+Create these modes:
+
+## QUICK QUIZ
+
+10 questions.
+
+Approximate completion time:
+
+5–7 minutes.
+
+---
+
+## STANDARD QUIZ
+
+20 questions.
+
+Mixed difficulty.
+
+---
+
+## CHALLENGE
+
+20 difficult questions.
+
+Mostly reasoning and scenario-based.
+
+---
+
+## CAREER FAIR MODE
+
+10 fast questions.
+
+Designed specifically for students visiting the school career fair.
+
+Keep questions interesting and accessible.
+
+---
+
+## JEE MODE
+
+Questions focused on:
+
+JEE
+IIT
+NIT
+IIIT
+GFTI
+JEE Main
+JEE Advanced
+admission pathways
+preparation
+
+---
+
+## MIXED ENGINEERING
+
+Random questions across the complete knowledge base.
+
+---
+
+# 8. ADAPTIVE QUIZ
+
+Add an optional adaptive mode.
+
+The quiz should observe:
+
+- correct answers
+- wrong answers
+- response time
+- topic performance
+- difficulty performance
+
+Then dynamically select the next question.
+
+Example:
+
+If the student answers:
+
+Engineering Basics → strong
+
+Branches → strong
+
+JEE → weak
+
+The system should gradually provide more JEE-related questions.
+
+Do NOT make the adaptive system unfair.
+
+---
+
+# 9. QUESTION RANDOMIZATION
+
+Questions should be randomized.
+
+Randomize:
+
+- question order
+- option order
+
+BUT:
+
+Never change the meaning of a question.
+
+After option randomization, the answer key must be recalculated correctly.
+
+Never allow the correct answer to remain permanently in option B or C.
+
+---
+
+# 10. NO REPEATED QUESTIONS
+
+Track questions shown during the current session.
+
+Do not repeat them.
+
+Also maintain a recent-question history in localStorage.
+
+Suggested:
+
+```text
+jeejarvis-quiz-history
+```
+
+Avoid showing recently answered questions again unless the user deliberately chooses:
+
+"Practice Mistakes."
+
+---
+
+# 11. MISTAKE PRACTICE
+
+After completing a quiz, provide:
+
+## PRACTICE MY MISTAKES
+
+This should generate a new quiz based on:
+
+- questions answered incorrectly
+- related concepts
+- same topic
+- slightly different scenarios
+
+DO NOT simply repeat the exact same question.
+
+Example:
+
+Original:
+
+"Which branch is strongly associated with structural design?"
+
+Mistake practice:
+
+"Which engineering discipline is most directly involved in designing load-bearing structures?"
+
+The concept remains similar, but the question is new.
+
+---
+
+# 12. EXPLANATION SYSTEM
+
+Every question must have an explanation.
+
+After answering:
+
+Show:
+
+✓ Correct
+
+or
+
+✗ Incorrect
+
+Then:
+
+WHY?
+
+Provide a short educational explanation.
+
+Example:
+
+"ECE focuses on electronics, communication systems, embedded systems and related technologies. Embedded systems therefore align closely with ECE."
+
+Do NOT just say:
+
+"Answer: B."
+
+The explanation should teach something.
+
+---
+
+# 13. SOURCE TRANSPARENCY
+
+For questions based on the PPT/knowledge base, show:
+
+"Source: Career Fair Knowledge Base"
+
+For current numerical information:
+
+"Source: Official source"
+
+and show the relevant year/date.
+
+Do NOT display fake sources.
+
+Do NOT invent source URLs.
+
+If the system cannot verify a current number, avoid presenting it as a current fact.
+
+---
+
+# 14. CURRENT DATA PROTECTION
+
+This is extremely important.
+
+Some information changes over time:
+
+- college fees
+- cutoff ranks
+- salary packages
+- seat counts
+- admission rules
+- exam patterns
+- eligibility
+- dates
+- rankings
+
+Do NOT hard-code these as timeless facts.
+
+Store:
+
+```text
+value
+year
+source
+lastUpdated
+```
+
+For example:
+
+```json
+{
+  "value": "...",
+  "year": 2026,
+  "source": "...",
+  "lastUpdated": "2026-..."
+}
+```
+
+If a question depends on outdated information, either:
+
+1. update the source data, or
+2. clearly identify the year.
+
+---
+
+# 15. SCORING
+
+Create a clean scoring system.
+
+Default:
+
+Correct = +1
+
+Incorrect = 0
+
+Unanswered = 0
+
+For JEE simulation mode, optionally support:
+
+Correct = +4
+
+Incorrect = -1
+
+Unanswered = 0
+
+DO NOT mix these scoring systems without clearly showing which mode is active.
+
+---
+
+# 16. RESULT SCREEN
+
+After completion, create a premium result dashboard.
+
+Show:
+
+SCORE
+
+ACCURACY
+
+CORRECT
+
+WRONG
+
+UNANSWERED
+
+TIME
+
+TOPIC PERFORMANCE
+
+DIFFICULTY PERFORMANCE
+
+---
+
+Example:
+
+```text
+ENGINEERING QUIZ COMPLETE
+
+16 / 20
+
+80% Accuracy
+
+Correct     16
+Wrong        4
+Unanswered   0
+
+Strongest:
+Engineering Branches
+
+Needs Practice:
+JEE Admission
+```
+
+---
+
+# 17. PERFORMANCE ANALYSIS
+
+Create a visual analysis section.
+
+Example:
+
+Engineering Basics      ██████████ 90%
+
+Branches                █████████  85%
+
+Careers                 ███████    70%
+
+JEE                     █████      50%
+
+Technology              ████████   80%
+
+Use clean graphical cards.
+
+Do not create an overwhelming dashboard.
+
+---
+
+# 18. PERFORMANCE LEVEL
+
+Based on performance, display an encouraging status.
+
+Example:
+
+90–100%:
+"Excellent"
+
+75–89%:
+"Strong"
+
+60–74%:
+"Good Progress"
+
+40–59%:
+"Keep Practicing"
+
+Below 40%:
+"Start with the Basics"
+
+Do NOT use insulting or discouraging language.
+
+---
+
+# 19. TIME SYSTEM
+
+Show a clean timer.
+
+Example:
+
+05:42
+
+Do not make the timer visually dominant.
+
+For Career Fair Mode, keep timing relaxed.
+
+For Challenge Mode, optionally use a countdown.
+
+If time expires:
+
+Automatically submit.
+
+---
+
+# 20. PROGRESS BAR
+
+At the top:
+
+Question 7 / 20
+
+with a thin progress indicator.
+
+Example:
+
+● ● ● ● ● ● ● ○ ○ ○
+
+Do not create huge navigation panels.
+
+---
+
+# 21. QUESTION UI
+
+The question screen must be extremely clean.
+
+Structure:
+
+TOP:
+
+Topic
+Difficulty
+Question number
+
+CENTER:
+
+Question
+
+OPTIONS:
+
+A
+B
+C
+D
+
+BOTTOM:
+
+Previous
+Next
+
+or:
+
+Submit Answer
+
+Do not fill the screen with unnecessary controls.
+
+---
+
+# 22. TABLET-FIRST DESIGN
+
+This is extremely important because JEEJARVIS will be used on school tablets.
+
+Design for:
+
+- touch
+- landscape
+- portrait
+- smart board
+- Chrome tablet browser
+
+Minimum touch target:
+
+44px+
+
+Prefer:
+
+48–56px touch targets.
+
+Avoid tiny text.
+
+Avoid hover-dependent interactions.
+
+Everything must work through touch.
+
+---
+
+# 23. CAREER FAIR MODE
+
+Create a special mode.
+
+When activated:
+
+```text
+CAREER FAIR MODE
+```
+
+The interface becomes:
+
+- brighter
+- faster
+- simpler
+- more visual
+- less text-heavy
+
+Question cards should be large enough for students to read from a tablet.
+
+After each answer, provide a short explanation.
+
+At the end:
+
+"Your Engineering Profile"
+
+Show the student's strongest topics.
+
+Do NOT make personality or career recommendations from quiz scores unless explicitly designed as an objective educational mapping.
+
+---
+
+# 24. SMART BOARD MODE
+
+Create an optional:
+
+SMART BOARD MODE
+
+Features:
+
+- huge question text
+- large answer buttons
+- large progress indicator
+- high contrast
+- minimal controls
+
+This allows one person to operate JEEJARVIS while the entire class watches.
+
+---
+
+# 25. UI STYLE
+
+The quiz must visually match the futuristic JEEJARVIS identity.
+
+Do NOT make it look like a generic school Google Form.
+
+Design direction:
+
+ENGINEERING × FUTURE × SPACE × TECHNOLOGY
+
+Use:
+
+- dark futuristic background
+- subtle grid
+- glass panels
+- holographic accents
+- glowing borders
+- technical typography
+- engineering icons
+- subtle particles
+- depth
+- soft shadows
+- smooth transitions
+
+But DO NOT overdo gradients.
+
+Avoid:
+
+- excessive neon
+- childish UI
+- generic AI robot graphics
+- huge text
+- excessive cards
+- too many buttons
+
+---
+
+# 26. ORB INTEGRATION
+
+The JEEJARVIS orb should remain visible where appropriate.
+
+When the quiz is active:
+
+IDLE:
+soft breathing animation
+
+QUESTION:
+calm state
+
+ANSWER SELECTED:
+small pulse
+
+CORRECT:
+positive energy pulse
+
+INCORRECT:
+subtle warning pulse
+
+RESULT:
+special completion animation
+
+Do not make the orb distracting during questions.
+
+---
+
+# 27. AI VOICE INTEGRATION
+
+Allow JEEJARVIS to read questions aloud.
+
+Example:
+
+"Question 5."
+
+Then:
+
+"Which branch is most closely associated with embedded systems?"
+
+Then read the options.
+
+But voice must NOT automatically submit an answer from background speech.
+
+Voice interaction must use the same robust VoiceController from the main JEEJARVIS system.
+
+Use:
+
+- noise suppression
+- echo cancellation
+- voice activity detection
+- adaptive endpointing
+- explicit listening states
+- push-to-talk in noisy environments
+
+Do not allow the microphone to remain stuck in listening mode.
+
+---
+
+# 28. VOICE ANSWER MODE
+
+Optional voice answer commands:
+
+"Option A"
+
+"Option B"
+
+"Option C"
+
+"Option D"
+
+"Answer A"
+
+"Next"
+
+"Repeat"
+
+"Explain"
+
+"Skip"
+
+"Submit"
+
+Only accept commands while the quiz voice interaction is explicitly active.
+
+Do not interpret random classroom speech as an answer.
+
+---
+
+# 29. QUESTION READING
+
+If the user presses:
+
+🔊 READ QUESTION
+
+JEEJARVIS should speak:
+
+- question
+- options
+
+Then stop speaking.
+
+Do not immediately activate microphone listening.
+
+If microphone mode is activated, clearly show:
+
+LISTENING...
+
+and then automatically stop when the student's speech ends.
+
+---
+
+# 30. KEYBOARD SUPPORT
+
+Support:
+
+A → select A
+
+B → select B
+
+C → select C
+
+D → select D
+
+Enter → submit
+
+Arrow keys → navigate
+
+But keyboard support must never interfere with tablet touch interaction.
+
+---
+
+# 31. ACCESSIBILITY
+
+Support:
+
+- large text
+- high contrast
+- readable fonts
+- keyboard navigation
+- screen-reader-friendly labels
+- clear focus states
+- no color-only meaning
+
+Correct/incorrect states must use text and icons in addition to color.
+
+---
+
+# 32. ANTI-CHEATING / FAIRNESS
+
+Do NOT expose answers in:
+
+- HTML attributes
+- visible DOM text
+- CSS classes
+- question IDs
+- obvious JavaScript variables
+
+Do not place:
+
+```text
+correctAnswer: B
+```
+
+in an easily visible UI element.
+
+However, this is a school learning tool, so do not implement invasive surveillance.
+
+---
+
+# 33. OFFLINE / NETWORK RESILIENCE
+
+If the quiz question bank is already loaded:
+
+Allow the quiz to continue even if a temporary API/network issue occurs.
+
+Store session progress locally.
+
+If the page refreshes:
+
+Offer:
+
+"Resume Quiz"
+
+Do not lose completed answers unnecessarily.
+
+---
+
+# 34. SAVE QUIZ HISTORY
+
+Store locally:
+
+```text
+jeejarvis-quiz-history
+jeejarvis-quiz-progress
+jeejarvis-quiz-stats
+```
+
+Track:
+
+- quiz name
+- date
+- score
+- accuracy
+- topics
+- difficulty
+- mistakes
+- completion time
+
+Do not store unnecessary personal information.
+
+---
+
+# 35. QUIZ HISTORY PAGE
+
+Create a compact history section.
+
+Example:
+
+```text
+QUIZ HISTORY
+
+Career Fair Quiz
+16/20
+80%
+Today
+
+JEE Basics
+13/20
+65%
+Yesterday
+
+Engineering Branches
+18/20
+90%
+2 days ago
+```
+
+Clicking an entry should show the result analysis.
+
+---
+
+# 36. QUESTION QUALITY RULES
+
+Every question must satisfy:
+
+1. Exactly one answer for single-answer MCQ.
+2. No ambiguous wording.
+3. No trick questions unless explicitly labelled Challenge.
+4. No duplicate options.
+5. No two options that are both technically correct.
+6. No nonsense distractors.
+7. No answer clues from option length.
+8. No repeated questions.
+9. No unsupported facts.
+10. No outdated numerical facts presented as current.
+11. Explanation must actually explain the answer.
+12. Question must test knowledge, not guessability.
+
+---
+
+# 37. DISTRACTOR QUALITY
+
+Wrong options must be plausible.
+
+Bad:
+
+A. CSE
+
+B. Banana
+
+C. Civil Engineering
+
+D. ECE
+
+Good:
+
+A. Computer Science and Engineering
+
+B. Electronics and Communication Engineering
+
+C. Electrical and Electronics Engineering
+
+D. Mechanical Engineering
+
+The distractors should come from the same knowledge domain.
+
+---
+
+# 38. QUESTION BALANCING
+
+For a 20-question mixed quiz:
+
+Example distribution:
+
+Engineering Basics — 2
+
+Branches — 3
+
+Careers — 3
+
+Technology — 2
+
+JEE Main — 3
+
+JEE Advanced — 2
+
+IIT/NIT/IIIT — 2
+
+Admissions — 2
+
+Higher Studies — 1
+
+Total = 20
+
+Randomize within reasonable limits.
+
+Do not allow one topic to dominate every mixed quiz.
+
+---
+
+# 39. DIFFICULTY BALANCING
+
+For Standard Mode:
+
+Easy — 30%
+
+Medium — 45%
+
+Hard — 25%
+
+For Challenge Mode:
+
+Easy — 10%
+
+Medium — 30%
+
+Hard — 60%
+
+For Career Fair Mode:
+
+Easy — 50%
+
+Medium — 40%
+
+Hard — 10%
+
+---
+
+# 40. QUESTION GENERATION FROM PPT KNOWLEDGE
+
+Use the PPT-derived knowledge structure to generate questions.
+
+For example:
+
+PPT concept:
+
+Engineering branches → CSE → AI/Data Science
+
+Possible questions:
+
+"Which branch is most directly associated with computer software and computing systems?"
+
+or:
+
+"Which combination of skills would be particularly useful for an AI-focused engineering career?"
+
+Do not copy entire PPT sentences blindly.
+
+Convert concepts into useful educational questions.
+
+---
+
+# 41. CONCEPT COVERAGE
+
+Build a concept map.
+
+Example:
+
+ENGINEERING
+│
+├── Branches
+│   ├── CSE
+│   ├── ECE
+│   ├── EEE
+│   ├── Mechanical
+│   ├── Civil
+│   ├── Chemical
+│   ├── Aerospace
+│   └── Biotechnology
+│
+├── Careers
+│
+├── Technologies
+│
+├── Entrance Exams
+│   ├── JEE Main
+│   ├── JEE Advanced
+│   └── TNEA
+│
+├── Colleges
+│   ├── IIT
+│   ├── NIT
+│   ├── IIIT
+│   └── GFTI
+│
+└── Higher Studies
+```
+
+The quiz engine should select questions from different nodes.
+
+---
+
+# 42. LEARNING LOOP
+
+After every quiz:
+
+RESULT
+↓
+MISTAKES
+↓
+WEAK TOPICS
+↓
+NEW QUESTIONS
+↓
+IMPROVEMENT
+
+Add:
+
+"PRACTICE WEAK TOPICS"
+
+This should create a new quiz automatically.
+
+---
+
+# 43. EXPLANATION MODE
+
+After completing a quiz, allow:
+
+"Review Answers"
+
+Each question shows:
+
+Your answer
+
+Correct answer
+
+Explanation
+
+Source
+
+Topic
+
+Difficulty
+
+This should be much more useful than simply showing the score.
+
+---
+
+# 44. JEE SIMULATION
+
+Create a special JEE-style quiz mode.
+
+Display:
+
+```text
+JEE PRACTICE
+
+Question 4 / 20
+
++4 Correct
+-1 Incorrect
+0 Unanswered
+```
+
+Clearly show the marking scheme before starting.
+
+Do not call it an official JEE exam.
+
+Label it:
+
+"JEE-style practice"
+
+---
+
+# 45. CAREER FAIR LEADERBOARD
+
+OPTIONAL.
+
+If the school wants a leaderboard, implement it only if the existing project has a suitable backend.
+
+Do NOT collect unnecessary personal information.
+
+Allow anonymous names such as:
+
+Student 01
+
+Team Alpha
+
+Table 2
+
+Avoid exposing personal student information.
+
+---
+
+# 46. ANIMATION
+
+Animations should be fast and smooth.
+
+Question transition:
+
+150–250ms
+
+Option selection:
+
+small scale/pulse
+
+Correct:
+
+subtle success animation
+
+Incorrect:
+
+subtle shake
+
+Result:
+
+smooth reveal
+
+Do not use excessive animation.
+
+Performance on school tablets is more important than visual effects.
+
+---
+
+# 47. MOBILE / TABLET RESPONSIVENESS
+
+Test:
+
+320px
+
+375px
+
+430px
+
+768px
+
+1024px
+
+1280px+
+
+The quiz must not overflow horizontally.
+
+Landscape tablet must work perfectly.
+
+Smart board display must remain readable.
+
+---
+
+# 48. PERFORMANCE
+
+Do not load hundreds of questions into the UI at once.
+
+Load question banks efficiently.
+
+Use lazy loading where appropriate.
+
+Do not make every question require an AI API call.
+
+Prefer local structured question data for stable questions.
+
+Use AI generation only when appropriate and safely validated.
+
+---
+
+# 49. AI-GENERATED QUESTION SAFETY
+
+If AI dynamically generates questions:
+
+AI output must pass validation before being displayed.
+
+Validate:
+
+- exactly four options for MCQ
+- exactly one correct answer
+- no duplicate options
+- answer exists
+- explanation exists
+- source exists where required
+- no unsupported numerical claim
+- no ambiguous question
+
+If validation fails:
+
+Discard the question and generate another.
+
+NEVER display an unvalidated AI-generated question.
+
+---
+
+# 50. LOADING STATES
+
+Never show a blank screen.
+
+Use:
+
+"Preparing your quiz..."
+
+with a subtle engineering animation.
+
+If loading fails:
+
+"Quiz couldn't be loaded."
+
+Buttons:
+
+Retry
+
+Back
+
+---
+
+# 51. ERROR HANDLING
+
+If the AI service fails:
+
+The local question bank should still work.
+
+If a question fails to load:
+
+Skip that question and load another valid question.
+
+Never crash the entire quiz.
+
+---
+
+# 52. DO NOT BREAK EXISTING JEEJARVIS
+
+This upgrade must NOT break:
+
+- voice assistant
+- orb
+- search
+- AI responses
+- PPT knowledge
+- engineering knowledge base
+- existing navigation
+- tablet layout
+- API connection
+- authentication if present
+- existing pages
+
+Before modifying shared code, inspect how it is currently used.
+
+Reuse existing components and utilities whenever possible.
+
+---
+
+# 53. FILE STRUCTURE
+
+Adapt to the existing project rather than blindly creating duplicate systems.
+
+If appropriate, use:
+
+```text
+js/
+    quiz.js
+    quiz-engine.js
+    quiz-data.js
+    quiz-ui.js
+    quiz-storage.js
+    quiz-voice.js
+
+data/
+    quiz/
+        engineering-basics.json
+        branches.json
+        careers.json
+        technologies.json
+        jee-main.json
+        jee-advanced.json
+        colleges.json
+        admissions.json
+        higher-studies.json
+        mixed.json
+```
+
+Do not create duplicate functions with the same purpose.
+
+---
+
+# 54. MAIN QUIZ LANDING PAGE
+
+The landing page should immediately communicate:
+
+JEEJARVIS QUIZ
+
+"Test your engineering knowledge."
+
+Then show:
+
+QUICK QUIZ
+
+CAREER FAIR
+
+JEE
+
+ENGINEERING
+
+CHALLENGE
+
+MIXED
+
+Keep the number of buttons low.
+
+---
+
+# 55. UI HIERARCHY
+
+The most important elements should be:
+
+1. Question
+2. Answer choices
+3. Progress
+4. Submit/Next
+5. Timer
+
+Everything else should be secondary.
+
+Do not put 15 controls around the question.
+
+---
+
+# 56. SEARCH + QUIZ
+
+If the user searches a topic before starting:
+
+Example:
+
+"ECE"
+
+Offer:
+
+"Quiz me on ECE"
+
+This should start an ECE-focused quiz.
+
+Similarly:
+
+"JEE Main"
+
+→ "Start JEE Main Quiz"
+
+"AI"
+
+→ "Start AI & Technology Quiz"
+
+This should integrate with the main JEEJARVIS search/AI system.
+
+---
+
+# 57. VOICE COMMANDS
+
+Support:
+
+"Start quiz"
+
+"Quiz me on CSE"
+
+"Quiz me on engineering"
+
+"Start JEE quiz"
+
+"Easy quiz"
+
+"Hard quiz"
+
+"Next question"
+
+"Repeat question"
+
+"Explain answer"
+
+"Show result"
+
+"Exit quiz"
+
+These commands must be recognized only when appropriate.
+
+---
+
+# 58. FINAL RESULT CALL-TO-ACTION
+
+After the result:
+
+If score is strong:
+
+"Try Challenge Mode"
+
+If score is moderate:
+
+"Practice Weak Topics"
+
+If score is low:
+
+"Start Beginner Mode"
+
+Always keep the tone encouraging.
+
+---
+
+# 59. IMPORTANT DESIGN PRINCIPLE
+
+The quiz should feel like:
+
+A FUTURISTIC ENGINEERING LEARNING EXPERIENCE
+
+NOT:
+
+A GOOGLE FORM
+
+NOT:
+
+A BORING SCHOOL TEST
+
+NOT:
+
+A GENERIC AI CHAT WINDOW
+
+NOT:
+
+A RANDOM MCQ GENERATOR
+
+---
+
+# 60. FINAL TESTING CHECKLIST
+
+Before finishing the implementation, test:
+
+□ Quiz starts correctly
+
+□ Topic selection works
+
+□ Difficulty selection works
+
+□ 10-question quiz works
+
+□ 20-question quiz works
+
+□ Randomization works
+
+□ Correct answers are calculated correctly
+
+□ Wrong answers are calculated correctly
+
+□ Explanations appear
+
+□ No duplicate questions
+
+□ No duplicate options
+
+□ Timer works
+
+□ Progress works
+
+□ Review Answers works
+
+□ Mistake Practice works
+
+□ Quiz history works
+
+□ LocalStorage works
+
+□ Tablet portrait works
+
+□ Tablet landscape works
+
+□ Smart Board Mode works
+
+□ Voice question reading works
+
+□ Voice answer mode works
+
+□ Voice does not remain stuck listening
+
+□ Classroom noise does not accidentally submit answers
+
+□ JEE mode works
+
+□ Career Fair mode works
+
+□ Challenge mode works
+
+□ Mixed mode works
+
+□ PPT-derived topics are represented
+
+□ Current numerical information is source/year aware
+
+□ AI-generated questions are validated
+
+□ API failure does not crash local quizzes
+
+□ Existing JEEJARVIS functionality remains intact
+
+---
+
+# FINAL GOAL
+
+When a student opens JEEJARVIS and taps QUIZ, the experience should immediately feel like a polished engineering learning platform.
+
+The student should be able to:
+
+Choose a topic
+→ choose difficulty
+→ start quiz
+→ answer questions
+→ receive explanations
+→ see performance
+→ identify weak topics
+→ practice mistakes
+→ improve
+
+Everything must be:
+
+FAST
+TOUCH-FRIENDLY
+ACCURATE
+EDUCATIONAL
+FUTURISTIC
+TABLET-FIRST
+CAREER-FAIR READY
+
+Most importantly:
+
+THE QUIZ KNOWLEDGE MUST COME FROM THE SAME ENGINEERING / CAREER / JEE KNOWLEDGE SYSTEM THAT POWERS JEEJARVIS.
+
+Do not create a disconnected quiz system.
+Integrate it deeply with the existing JEEJARVIS knowledge architecture.

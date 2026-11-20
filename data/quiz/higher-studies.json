@@ -1,0 +1,96 @@
+[
+  {
+    "id": "qf-hs-01",
+    "topic": "GATE Examination Overview",
+    "concept": "gate-purpose",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Higher Studies & GATE",
+    "categoryId": "higher-studies",
+    "chapter": "Postgraduate Pathways",
+    "question": "What does the GATE examination primarily unlock for engineering graduates in India?",
+    "options": [
+      "Admission to M.Tech/PhD programs at IITs/NITs/IISc as well as recruitment in many PSUs",
+      "Direct entry into Class 11 high school",
+      "Exemption from all undergraduate B.Tech lab exams",
+      "Only admission to undergraduate medical degrees"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "GATE (Graduate Aptitude Test in Engineering) tests core undergraduate engineering concepts for M.Tech/MS(R)/PhD admissions and PSU technical officer recruitment.",
+      "concept": "GATE Dual Pathway",
+      "shortcut": "GATE score opens M.Tech/PhD admissions AND PSU engineering jobs.",
+      "commonTrap": "GATE is a technical exam on undergraduate engineering fundamentals, not just general trivia."
+    },
+    "source": "Official Source (GATE Information Brochure)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["higher-studies", "gate", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-hs-02",
+    "topic": "Post-B.Tech Pathway Match",
+    "concept": "higher-studies-degrees",
+    "difficulty": "Medium",
+    "questionType": "match",
+    "subject": "Higher Studies & GATE",
+    "categoryId": "higher-studies",
+    "chapter": "Global & Domestic Degrees",
+    "question": "Match each postgraduate degree pathway in List I with its primary goal in List II.",
+    "matchPairs": {
+      "left": [
+        "M.Tech / M.E.",
+        "MS (Research / Abroad)",
+        "MBA (Tech Management)",
+        "PhD"
+      ],
+      "right": [
+        "Product leadership, consulting, operations, and business strategy",
+        "Original deep research, novel discoveries, and academic/R&D leadership",
+        "Specialized engineering depth via coursework + thesis in India",
+        "Research-intensive or global graduate specialization with lab/thesis focus"
+      ]
+    },
+    "options": [],
+    "answer": [2, 3, 0, 1],
+    "explanation": {
+      "why": "M.Tech deepens Indian technical specialization; MS emphasizes research/international specialization; MBA transitions engineers toward business/product leadership; PhD develops original research.",
+      "concept": "Postgraduate Pathway Map",
+      "shortcut": "M.Tech = Technical Depth | MS = Research/Global | MBA = Management | PhD = Original Research.",
+      "commonTrap": "Strong research publications and internships boost MS and PhD admissions far more than exam scores alone."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["higher-studies", "mtech", "ms", "mba", "phd", "match"],
+    "verified": true
+  },
+  {
+    "id": "qf-hs-03",
+    "topic": "Research vs Industry Master's",
+    "concept": "research-preparation",
+    "difficulty": "Hard",
+    "questionType": "career_path",
+    "subject": "Higher Studies & GATE",
+    "categoryId": "higher-studies",
+    "chapter": "Application Strategy",
+    "question": "An undergraduate student wants to pursue an MS or PhD in Robotics & Autonomous Systems. Which portfolio combination strengthens their application most?",
+    "options": [
+      "Strong core GPA, faculty-mentored research projects or papers, letters of recommendation, and reproducible GitHub engineering work",
+      "Collecting random participation certificates with zero hands-on engineering work",
+      "Avoiding math courses like linear algebra and probability",
+      "Waiting until graduation week to start thinking about prerequisites"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Graduate admissions committees value GPA, research depth, faculty recommendations, and demonstrable technical projects—especially math-heavy ones in robotics/AI.",
+      "concept": "Graduate Admissions Readiness",
+      "shortcut": "GPA + Faculty Research + Projects + Strong Recommendations.",
+      "commonTrap": "Passive certificates carry almost no weight compared to documented engineering projects and research."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["higher-studies", "research", "career-path"],
+    "verified": true
+  }
+]

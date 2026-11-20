@@ -1,0 +1,86 @@
+[
+  {
+    "id": "qf-jeea-01",
+    "topic": "JEE Main vs JEE Advanced",
+    "concept": "jee-main-vs-advanced",
+    "difficulty": "Hard",
+    "questionType": "comparison",
+    "subject": "JEE Advanced",
+    "categoryId": "jee-advanced",
+    "chapter": "Exam Comparison",
+    "question": "Which statement best distinguishes JEE Main from JEE Advanced?",
+    "options": [
+      "JEE Main acts as stage 1 for NIT/IIIT/GFTI admission and eligibility, whereas JEE Advanced is stage 2 specifically for admission to the IITs",
+      "JEE Advanced is taken before Class 10, while JEE Main is taken only after college",
+      "JEE Main is for IIT seats and JEE Advanced is exclusively for polytechnic diplomas",
+      "Both exams share identical single-choice-only question papers every year"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "JEE Main qualifies top candidates for JEE Advanced and handles NIT/IIIT/GFTI ranks; JEE Advanced tests deeper multi-concept reasoning for IIT B.Tech/dual-degree seats.",
+      "concept": "Stage 1 vs Stage 2 JEE Pathway",
+      "shortcut": "Main = Stage 1 (NIT/IIIT/GFTI + Qualifier); Advanced = Stage 2 (IITs).",
+      "commonTrap": "JEE Advanced also features varied formats (multi-correct, numerical, match) beyond single MCQ."
+    },
+    "source": "Official Source (JEE Advanced / JoSAA Guidelines)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["jee-advanced", "comparison", "iit"],
+    "verified": true
+  },
+  {
+    "id": "qf-jeea-02",
+    "topic": "JEE Advanced Eligibility",
+    "concept": "jee-adv-qualification",
+    "difficulty": "Medium",
+    "questionType": "truefalse",
+    "subject": "JEE Advanced",
+    "categoryId": "jee-advanced",
+    "chapter": "Qualification Pathway",
+    "question": "True or False: Only candidates who meet the JEE Main qualifying cutoff criteria (alongside eligibility rules) can register for JEE Advanced.",
+    "options": [
+      "True — clearing the JEE Main eligibility shortlist is a prerequisite for JEE Advanced",
+      "False — any student may take JEE Advanced directly without ever appearing in JEE Main"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "JEE Main functions as the screening stage: qualifying in JEE Main Paper 1 shortlist is mandatory before sitting for JEE Advanced.",
+      "concept": "Sequential JEE Screening",
+      "shortcut": "JEE Main shortlist -> eligible to sit JEE Advanced -> IIT counseling.",
+      "commonTrap": "You cannot bypass JEE Main to write JEE Advanced directly."
+    },
+    "source": "Official Source (JEE Advanced Organizing Institute Guidelines)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["jee-advanced", "eligibility"],
+    "verified": true
+  },
+  {
+    "id": "qf-jeea-03",
+    "topic": "JEE Advanced Problem Style",
+    "concept": "jee-adv-depth",
+    "difficulty": "Expert",
+    "questionType": "single",
+    "subject": "JEE Advanced",
+    "categoryId": "jee-advanced",
+    "chapter": "Exam Nature",
+    "question": "Why is JEE Advanced preparation focused heavily on multi-concept derivations rather than formula memorization alone?",
+    "options": [
+      "Because questions often blend two or more chapters and vary marking formats across years",
+      "Because JEE Advanced forbids showing mathematical reasoning",
+      "Because questions test only Class 6 geography trivia",
+      "Because calculators replace conceptual understanding in the exam hall"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "JEE Advanced questions integrate mechanics with calculus or electrostatics with optics, rewarding deep first-principles understanding.",
+      "concept": "First-Principles Multi-Concept Reasoning",
+      "shortcut": "Master concepts deeply rather than memorizing isolated formulas.",
+      "commonTrap": "Rote formula recall breaks down as soon as a problem twists boundary conditions."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["jee-advanced", "challenge", "preparation"],
+    "verified": true
+  }
+]

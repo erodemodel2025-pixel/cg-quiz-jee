@@ -1,0 +1,60 @@
+[
+  {
+    "id": "qf-nit-01",
+    "topic": "NIT Meaning & Admission",
+    "concept": "nit-jee-main",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "NITs",
+    "categoryId": "colleges",
+    "chapter": "National Institutes",
+    "question": "What does NIT stand for, and which exam rank is used for B.Tech admission to NITs?",
+    "options": [
+      "National Institute of Technology, admitted via JEE Main rank and JoSAA",
+      "National Institute of Textiles, admitted only via TNEA",
+      "New Innovation Trust, admitted via GATE after Class 10",
+      "National Industrial Training, admitted via NEET"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "NITs (National Institutes of Technology, such as NIT Trichy, NIT Surathkal, NIT Warangal) admit B.Tech students through JEE Main ranks in JoSAA/CSAB.",
+      "concept": "NIT & JEE Main Link",
+      "shortcut": "NIT = National Institute of Technology -> JEE Main + JoSAA.",
+      "commonTrap": "You do NOT need JEE Advanced to get into an NIT—JEE Main rank determines NIT seats."
+    },
+    "source": "Official Source (JoSAA / NIT System)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["nit", "jee-main", "colleges"],
+    "verified": true
+  },
+  {
+    "id": "qf-nit-02",
+    "topic": "NIT Home State vs Other State Quota",
+    "concept": "nit-quotas",
+    "difficulty": "Medium",
+    "questionType": "single",
+    "subject": "NITs",
+    "categoryId": "colleges",
+    "chapter": "Seat Quotas",
+    "question": "In JoSAA counseling for NITs, how do Home State (HS) and Other State (OS) quotas generally work?",
+    "options": [
+      "Half the seats at each NIT are generally reserved for students whose Class 12 school is in that state, and half for Other State candidates",
+      "Home State students can only apply to IITs and never NITs",
+      "All NIT seats across India are reserved exclusively for a single state",
+      "Quotas are assigned based on student height rather than Class 12 state"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "NITs balance regional access and national diversity through 50% Home State (based on Class 12 passing state) and 50% Other State seat pools.",
+      "concept": "NIT HS/OS Allocation",
+      "shortcut": "NITs split seats 50% Home State / 50% Other State based on Class 12 state.",
+      "commonTrap": "Home State is determined by where you passed Class 12, not necessarily your birthplace."
+    },
+    "source": "Official Source (JoSAA Business Rules)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["nit", "josaa", "admissions"],
+    "verified": true
+  }
+]

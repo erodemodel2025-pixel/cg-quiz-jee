@@ -1,0 +1,741 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-heading: "Space Grotesk", system-ui, sans-serif;
+  --font-sora: "Sora", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono-tech: "Space Mono", ui-monospace, monospace;
+  --font-pixel: "Space Grotesk", system-ui, sans-serif;
+  --font-display-pixel: "Sora", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-sans-exam: "Inter", system-ui, sans-serif;
+  --font-code: "Space Mono", ui-monospace, monospace;
+}
+
+/* ============================================================
+   CG QUIZ STUDIO: High-Contrast Obsidian & Daylight Design Tokens
+   ============================================================ */
+:root,
+html.dark {
+  --studio-bg: #070b13;
+  --studio-surface: #111827;
+  --studio-surface-2: #192338;
+  --studio-surface-3: #222f4a;
+  --studio-surface-glass: #111827;
+  --studio-border: #2c3b59;
+  --studio-border-strong: #455c87;
+
+  --studio-blue: #3b82f6;
+  --studio-cyan: #22d3ee;
+  --studio-purple: #8b5cf6;
+  --studio-emerald: #10b981;
+  --studio-amber: #f59e0b;
+  --studio-rose: #f43f5e;
+
+  /* Ultra-high-contrast text tokens for dark surfaces */
+  --studio-text: #ffffff;
+  --studio-text-secondary: #e2e8f0;
+  --studio-text-muted: #b4c2d6;
+  --studio-accent-text: #38bdf8;
+  --studio-cyan-text: #22d3ee;
+  --studio-emerald-text: #34d399;
+  --studio-amber-text: #fbbf24;
+  --studio-purple-text: #c4b5fd;
+  --studio-rose-text: #fb7185;
+
+  --studio-card-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.75);
+  --studio-nav-bg: rgba(11, 16, 28, 0.96);
+
+  /* Harmonized variables for preserved exam & arcade components */
+  --exam-bg: #070b13;
+  --exam-surface: #111827;
+  --exam-surface-alt: #192338;
+  --exam-border: #2c3b59;
+  --exam-border-strong: #455c87;
+  --exam-shadow: rgba(0, 0, 0, 0.65);
+  --exam-text: #ffffff;
+  --exam-text-secondary: #e2e8f0;
+  --exam-text-muted: #b4c2d6;
+  --exam-accent: #38bdf8;
+  --exam-accent-hover: #7dd3fc;
+  --exam-accent-soft: rgba(56, 189, 248, 0.16);
+  --exam-success: #34d399;
+  --exam-success-soft: rgba(16, 185, 129, 0.18);
+  --exam-warning: #fbbf24;
+  --exam-warning-soft: rgba(245, 158, 11, 0.18);
+  --exam-danger: #fb7185;
+  --exam-danger-soft: rgba(244, 63, 94, 0.18);
+  --exam-nav-bg: rgba(11, 16, 28, 0.96);
+  --voxel-green: #34d399;
+  --voxel-green-dark: #059669;
+  --voxel-gold: #fbbf24;
+  --voxel-gold-dark: #b45309;
+  --voxel-cyan: #22d3ee;
+}
+
+html.light {
+  --studio-bg: #edf2f8;
+  --studio-surface: #ffffff;
+  --studio-surface-2: #f8fafc;
+  --studio-surface-3: #e2e8f0;
+  --studio-surface-glass: #ffffff;
+  --studio-border: #cbd5e1;
+  --studio-border-strong: #94a3b8;
+
+  --studio-blue: #2563eb;
+  --studio-cyan: #0891b2;
+  --studio-purple: #7c3aed;
+  --studio-emerald: #059669;
+  --studio-amber: #d97706;
+  --studio-rose: #dc2626;
+
+  /* Ultra-high-contrast ink tokens for light surfaces */
+  --studio-text: #090e1a;
+  --studio-text-secondary: #1e293b;
+  --studio-text-muted: #475569;
+  --studio-accent-text: #0369a1;
+  --studio-cyan-text: #0e7490;
+  --studio-emerald-text: #047857;
+  --studio-amber-text: #b45309;
+  --studio-purple-text: #6d28d9;
+  --studio-rose-text: #be123c;
+
+  --studio-card-shadow: 0 10px 24px -10px rgba(15, 23, 42, 0.14);
+  --studio-nav-bg: rgba(255, 255, 255, 0.96);
+
+  --exam-bg: #edf2f8;
+  --exam-surface: #ffffff;
+  --exam-surface-alt: #f1f5f9;
+  --exam-border: #cbd5e1;
+  --exam-border-strong: #94a3b8;
+  --exam-shadow: rgba(15, 23, 42, 0.14);
+  --exam-text: #090e1a;
+  --exam-text-secondary: #1e293b;
+  --exam-text-muted: #475569;
+  --exam-accent: #0284c7;
+  --exam-accent-hover: #0369a1;
+  --exam-accent-soft: rgba(2, 132, 199, 0.12);
+  --exam-success: #047857;
+  --exam-success-soft: rgba(5, 150, 105, 0.14);
+  --exam-warning: #b45309;
+  --exam-warning-soft: rgba(217, 119, 6, 0.14);
+  --exam-danger: #be123c;
+  --exam-danger-soft: rgba(225, 29, 72, 0.14);
+  --exam-nav-bg: rgba(255, 255, 255, 0.96);
+  --voxel-green: #10b981;
+  --voxel-green-dark: #047857;
+  --voxel-gold: #f59e0b;
+  --voxel-gold-dark: #b45309;
+  --voxel-cyan: #0284c7;
+}
+
+/* ============================================================
+   Preserved Arcade Theme Palettes (Used inside Classic Labs)
+   ============================================================ */
+:root,
+[data-theme="cyber-midnight"] {
+  --bg-canvas: #070b13;
+  --bg-deep: #0b101b;
+  --bg-panel: #111827;
+  --bg-panel-alt: #192338;
+  --border-pixel: #2c3b59;
+  --accent-primary: #38bdf8;
+  --accent-secondary: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-green: #34d399;
+  --accent-orange: #f59e0b;
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-muted: #b4c2d6;
+}
+
+[data-theme="emerald-matrix"] {
+  --bg-canvas: #04120c;
+  --bg-deep: #061810;
+  --bg-panel: #0c2419;
+  --bg-panel-alt: #143626;
+  --border-pixel: #256146;
+  --accent-primary: #34d399;
+  --accent-secondary: #22d3ee;
+  --accent-purple: #3b82f6;
+  --accent-green: #34d399;
+  --accent-orange: #f59e0b;
+  --text-primary: #ffffff;
+  --text-secondary: #d1fae5;
+  --text-muted: #86efac;
+}
+
+[data-theme="volcanic-forge"] {
+  --bg-canvas: #13090a;
+  --bg-deep: #1b0c0e;
+  --bg-panel: #251216;
+  --bg-panel-alt: #341a1f;
+  --border-pixel: #69333c;
+  --accent-primary: #fb923c;
+  --accent-secondary: #fbbf24;
+  --accent-purple: #f43f5e;
+  --accent-green: #34d399;
+  --accent-orange: #f97316;
+  --text-primary: #ffffff;
+  --text-secondary: #ffedd5;
+  --text-muted: #fdba74;
+}
+
+[data-theme="synthwave-grid"] {
+  --bg-canvas: #0e071f;
+  --bg-deep: #140b2c;
+  --bg-panel: #1b103a;
+  --bg-panel-alt: #271852;
+  --border-pixel: #4c338f;
+  --accent-primary: #c084fc;
+  --accent-secondary: #22d3ee;
+  --accent-purple: #8b5cf6;
+  --accent-green: #34d399;
+  --accent-orange: #fbbf24;
+  --text-primary: #ffffff;
+  --text-secondary: #f3e8ff;
+  --text-muted: #d8b4fe;
+}
+
+html,
+body {
+  background-color: var(--studio-bg);
+  color: var(--studio-text);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+.font-sora {
+  font-family: var(--font-sora);
+  letter-spacing: -0.015em;
+}
+
+.font-mono-tech {
+  font-family: var(--font-mono-tech);
+  font-variant-numeric: tabular-nums;
+}
+
+.font-pixel {
+  font-family: var(--font-heading);
+  letter-spacing: 0.01em;
+}
+
+.font-display-pixel {
+  font-family: var(--font-sora);
+  letter-spacing: -0.01em;
+}
+
+.font-body {
+  font-family: var(--font-sans);
+}
+
+.font-exam {
+  font-family: var(--font-sans);
+}
+
+.font-code {
+  font-family: var(--font-mono-tech);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   CG QUIZ STUDIO: Distinct Elevated Surfaces (No Canvas Blending)
+   ============================================================ */
+.studio-card {
+  background-color: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: 14px;
+  color: var(--studio-text);
+  box-shadow: var(--studio-card-shadow);
+}
+
+.studio-card-solid {
+  background-color: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: 14px;
+  color: var(--studio-text);
+  box-shadow: var(--studio-card-shadow);
+}
+
+.studio-well {
+  background-color: var(--studio-surface-2);
+  border: 1px solid var(--studio-border);
+  border-radius: 12px;
+  color: var(--studio-text);
+}
+
+.studio-card-interactive {
+  background-color: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: 14px;
+  color: var(--studio-text);
+  box-shadow: var(--studio-card-shadow);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.studio-card-interactive:hover {
+  transform: translateY(-3px);
+  border-color: var(--studio-accent-text);
+  box-shadow:
+    0 18px 34px -12px rgba(2, 132, 199, 0.28),
+    var(--studio-card-shadow);
+}
+
+/* ============================================================
+   Rebuilt Precision Tactile Button System
+   ============================================================ */
+.studio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-sora);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  border-radius: 10px;
+  min-height: 42px;
+  padding: 0.55rem 1.15rem;
+  border: 1px solid transparent;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 120ms ease, background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.studio-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.studio-btn:active:not(:disabled) {
+  transform: translateY(2px);
+}
+
+.studio-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.studio-btn:focus-visible {
+  outline: 2px solid var(--studio-accent-text);
+  outline-offset: 2px;
+}
+
+/* Primary Electric Cobalt CTA — pure white text on rich blue */
+.studio-btn-primary {
+  background-color: #2563eb;
+  color: #ffffff;
+  border-color: #60a5fa;
+  box-shadow: 0 3px 0 #1e3a8a, 0 8px 18px -6px rgba(37, 99, 235, 0.45);
+}
+
+.studio-btn-primary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+  border-color: #93c5fd;
+  box-shadow: 0 4px 0 #1e3a8a, 0 12px 22px -6px rgba(37, 99, 235, 0.55);
+}
+
+.studio-btn-primary:active:not(:disabled) {
+  box-shadow: 0 1px 0 #1e3a8a;
+}
+
+/* High-Contrast Cyan CTA — ink-black text on bright cyan */
+.studio-btn-cyan {
+  background-color: #06b6d4;
+  color: #04101c;
+  border-color: #67e8f9;
+  box-shadow: 0 3px 0 #0e7490, 0 8px 18px -6px rgba(6, 182, 212, 0.45);
+}
+
+.studio-btn-cyan:hover:not(:disabled) {
+  background-color: #22d3ee;
+  border-color: #a5f3fc;
+  box-shadow: 0 4px 0 #0e7490, 0 12px 22px -6px rgba(34, 211, 238, 0.55);
+}
+
+.studio-btn-cyan:active:not(:disabled) {
+  box-shadow: 0 1px 0 #0e7490;
+}
+
+/* High-Contrast Emerald CTA — ink-black text on bright emerald */
+.studio-btn-emerald {
+  background-color: #10b981;
+  color: #021a10;
+  border-color: #6ee7b7;
+  box-shadow: 0 3px 0 #047857, 0 8px 18px -6px rgba(16, 185, 129, 0.45);
+}
+
+.studio-btn-emerald:hover:not(:disabled) {
+  background-color: #34d399;
+  border-color: #a7f3d0;
+  box-shadow: 0 4px 0 #047857, 0 12px 22px -6px rgba(52, 211, 153, 0.5);
+}
+
+.studio-btn-emerald:active:not(:disabled) {
+  box-shadow: 0 1px 0 #047857;
+}
+
+/* High-Contrast Violet CTA — pure white text on rich violet */
+.studio-btn-purple {
+  background-color: #7c3aed;
+  color: #ffffff;
+  border-color: #a78bfa;
+  box-shadow: 0 3px 0 #4c1d95, 0 8px 18px -6px rgba(124, 58, 237, 0.45);
+}
+
+.studio-btn-purple:hover:not(:disabled) {
+  background-color: #6d28d9;
+  border-color: #c4b5fd;
+  box-shadow: 0 4px 0 #4c1d95, 0 12px 22px -6px rgba(124, 58, 237, 0.55);
+}
+
+.studio-btn-purple:active:not(:disabled) {
+  box-shadow: 0 1px 0 #4c1d95;
+}
+
+/* High-Contrast Amber CTA — ink-black text on bright gold */
+.studio-btn-amber {
+  background-color: #f59e0b;
+  color: #1a1002;
+  border-color: #fde68a;
+  box-shadow: 0 3px 0 #b45309, 0 8px 18px -6px rgba(245, 158, 11, 0.4);
+}
+
+.studio-btn-amber:hover:not(:disabled) {
+  background-color: #fbbf24;
+  border-color: #fef3c7;
+}
+
+.studio-btn-amber:active:not(:disabled) {
+  box-shadow: 0 1px 0 #b45309;
+}
+
+/* Tactile Secondary / Outline Button — crisp surface separation, NEVER invisible */
+.studio-btn-ghost {
+  background-color: var(--studio-surface-2);
+  color: var(--studio-text);
+  border-color: var(--studio-border-strong);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+html.light .studio-btn-ghost {
+  background-color: #ffffff;
+  color: #090e1a;
+  border-color: #94a3b8;
+  box-shadow: 0 2px 0 #cbd5e1;
+}
+
+.studio-btn-ghost:hover:not(:disabled) {
+  background-color: var(--studio-surface-3);
+  border-color: var(--studio-accent-text);
+  color: var(--studio-text);
+}
+
+html.light .studio-btn-ghost:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.studio-btn-ghost:active:not(:disabled) {
+  box-shadow: 0 0 0 transparent;
+}
+
+/* Crisp Inputs */
+.studio-input {
+  background-color: var(--studio-surface-2);
+  color: var(--studio-text);
+  border: 1px solid var(--studio-border-strong);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.studio-input::placeholder {
+  color: var(--studio-text-muted);
+}
+
+html.light .studio-input {
+  background-color: #ffffff;
+  border-color: #94a3b8;
+}
+
+.studio-input:focus {
+  border-color: var(--studio-accent-text);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.22);
+}
+
+/* ============================================================
+   Legacy Class Harmonization (High-Contrast Preserved Labs)
+   ============================================================ */
+.exam-card {
+  background-color: var(--exam-surface);
+  border: 1px solid var(--exam-border);
+  box-shadow: var(--studio-card-shadow);
+  border-radius: 14px;
+  color: var(--exam-text);
+}
+
+.exam-card-subtle {
+  background-color: var(--exam-surface-alt);
+  border: 1px solid var(--exam-border);
+  border-radius: 12px;
+  color: var(--exam-text);
+}
+
+.exam-input {
+  background-color: var(--exam-surface-alt);
+  color: var(--exam-text);
+  border: 1px solid var(--exam-border-strong);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.exam-input:focus {
+  border-color: var(--exam-accent);
+  box-shadow: 0 0 0 3px var(--exam-accent-soft);
+}
+
+.exam-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-sora);
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid var(--exam-border-strong);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+  min-height: 42px;
+  padding: 0.55rem 1.05rem;
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 140ms ease, border-color 140ms ease;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.exam-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--exam-accent);
+}
+
+.exam-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.exam-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.exam-btn-primary {
+  background-color: #2563eb;
+  color: #ffffff;
+  border-color: #60a5fa;
+  box-shadow: 0 3px 0 #1e3a8a;
+}
+
+.exam-btn-primary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.exam-btn-secondary {
+  background-color: var(--exam-surface-alt);
+  color: var(--exam-text);
+}
+
+.exam-btn-gold {
+  background-color: #f59e0b;
+  color: #1a1002;
+  border-color: #fde68a;
+  box-shadow: 0 3px 0 #b45309;
+}
+
+.voxel-tile {
+  background-color: var(--exam-surface);
+  border: 1px solid var(--exam-border);
+  box-shadow: var(--studio-card-shadow);
+  border-radius: 14px;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.voxel-tile:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--exam-accent);
+}
+
+.pixel-panel {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-pixel);
+  box-shadow: var(--studio-card-shadow);
+  border-radius: 14px;
+  color: var(--text-primary);
+}
+
+.pixel-panel-dark {
+  background-color: var(--bg-deep);
+  border: 1px solid var(--border-pixel);
+  border-radius: 12px;
+  color: var(--text-primary);
+}
+
+.pixel-panel-accent {
+  background-color: var(--bg-panel-alt);
+  border: 1px solid var(--accent-primary);
+  border-radius: 14px;
+  color: var(--text-primary);
+}
+
+.pixel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-sora);
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid var(--border-pixel);
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.pixel-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.pixel-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.pixel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pixel-btn-cyan {
+  background-color: #06b6d4;
+  color: #04101c;
+  border-color: #67e8f9;
+  box-shadow: 0 3px 0 #0e7490;
+}
+
+.pixel-btn-yellow {
+  background-color: #f59e0b;
+  color: #1a1002;
+  border-color: #fde68a;
+  box-shadow: 0 3px 0 #b45309;
+}
+
+.pixel-btn-green {
+  background-color: #10b981;
+  color: #021a10;
+  border-color: #6ee7b7;
+  box-shadow: 0 3px 0 #047857;
+}
+
+.pixel-btn-purple {
+  background-color: #7c3aed;
+  color: #ffffff;
+  border-color: #a78bfa;
+  box-shadow: 0 3px 0 #4c1d95;
+}
+
+.pixel-btn-orange {
+  background-color: #ea580c;
+  color: #ffffff;
+  border-color: #fdba74;
+  box-shadow: 0 3px 0 #9a3412;
+}
+
+.pixel-btn-ghost {
+  background-color: var(--bg-panel-alt);
+  color: var(--text-primary);
+  border-color: var(--studio-border-strong);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.pixel-input {
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  border: 1px solid var(--studio-border-strong);
+  border-radius: 10px;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.pixel-input:focus {
+  border-color: var(--accent-primary);
+}
+
+/* ============================================================
+   Smooth Motion & Animations
+   ============================================================ */
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes shake-gentle {
+  0%, 100% { transform: translateX(0px); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+}
+
+.animate-pixel-bob {
+  animation: float-gentle 3s ease-in-out infinite;
+}
+
+.animate-pixel-pop {
+  transition: transform 180ms ease;
+}
+
+.animate-pixel-shake {
+  animation: shake-gentle 0.3s ease;
+}
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Custom clean thin scrollbars for 3D Studio & Phone Designer sidebars */
+.studio-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.studio-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.studio-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+.studio-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.6);
+}

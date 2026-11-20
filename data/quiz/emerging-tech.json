@@ -1,0 +1,86 @@
+[
+  {
+    "id": "qf-emg-01",
+    "topic": "Emerging Tech Overview",
+    "concept": "iot-definition",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Emerging Technologies",
+    "categoryId": "ai",
+    "chapter": "Connected Systems",
+    "question": "In engineering, what does IoT (Internet of Things) primarily describe?",
+    "options": [
+      "Physical devices embedded with sensors and connectivity that exchange and act on real-world data",
+      "A programming language created solely for printing paper textbooks",
+      "An offline mechanical gearbox with zero electronics",
+      "A manual typewriting standard from the 1960s"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "IoT links physical sensors, microcontrollers, wireless networks, and cloud/edge analytics in smart agriculture, health monitors, and factories.",
+      "concept": "Internet of Things (IoT)",
+      "shortcut": "Sensors + Microcontroller + Network + Data = IoT.",
+      "commonTrap": "IoT connects physical-world devices—not purely screen-only websites."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["emerging-tech", "iot", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-emg-02",
+    "topic": "Digital Twins",
+    "concept": "digital-twin",
+    "difficulty": "Hard",
+    "questionType": "single",
+    "subject": "Emerging Technologies",
+    "categoryId": "ai",
+    "chapter": "Simulation & Industry 4.0",
+    "question": "What is a 'Digital Twin' in modern aerospace and manufacturing engineering?",
+    "options": [
+      "A live virtual simulation model synced with real sensor data from a physical machine or system",
+      "Printing two identical paper posters of an engineering drawing",
+      "Installing two duplicate keyboards on one workstation",
+      "Deleting historical telemetry after every factory shift"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "A digital twin mirrors a real asset in software using live telemetry so engineers can test stress, wear, and upgrades virtually before risking hardware.",
+      "concept": "Digital Twin Simulation",
+      "shortcut": "Physical system + live sensors -> real-time virtual twin.",
+      "commonTrap": "Unlike a static 3D drawing, a digital twin updates continuously with real-world data."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["emerging-tech", "digital-twin", "challenge"],
+    "verified": true
+  },
+  {
+    "id": "qf-emg-03",
+    "topic": "Cybersecurity Fundamentals",
+    "concept": "cybersecurity-role",
+    "difficulty": "Medium",
+    "questionType": "single",
+    "subject": "Emerging Technologies",
+    "categoryId": "cs",
+    "chapter": "Security Engineering",
+    "question": "Why is cybersecurity increasingly important in electrical grids, medical devices, and autonomous vehicles?",
+    "options": [
+      "Because connected hardware and control networks must be protected against unauthorized manipulation and data breaches",
+      "Because power grids no longer use software or communication protocols",
+      "Because cybersecurity engineers only design colorful user logos",
+      "Because offline mechanical springs can be hacked over Wi-Fi"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Modern infrastructure runs over connected controllers and networks; security engineering protects safety, availability, and privacy.",
+      "concept": "Cyber-Physical System Security",
+      "shortcut": "Connected critical hardware -> security is a safety requirement.",
+      "commonTrap": "Cybersecurity is not just websites—it protects critical industrial and automotive systems."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["emerging-tech", "cybersecurity", "cs"],
+    "verified": true
+  }
+]

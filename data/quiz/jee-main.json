@@ -1,0 +1,117 @@
+[
+  {
+    "id": "qf-jeem-01",
+    "topic": "JEE Main Purpose",
+    "concept": "jee-main-gateway",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "JEE Main",
+    "categoryId": "jee-main",
+    "chapter": "Entrance Overview",
+    "question": "Which statement accurately describes the primary purpose of JEE Main?",
+    "options": [
+      "It serves as the national entrance gateway for NITs, IIITs, and GFTIs and as the qualifying filter for JEE Advanced",
+      "It directly admits students into IITs without requiring JEE Advanced",
+      "It replaces Class 12 board exams for high school graduation",
+      "It is exclusively for medical college admissions across India"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "JEE Main ranks candidates for admission to NITs, IIITs, and GFTIs (via JoSAA/CSAB) and determines eligibility for top candidates to appear in JEE Advanced for IIT seats.",
+      "concept": "Two-Stage JEE Architecture",
+      "shortcut": "JEE Main -> NITs/IIITs/GFTIs + qualifies you for JEE Advanced.",
+      "commonTrap": "You cannot enter IIT B.Tech programs solely through JEE Main rank without clearing JEE Advanced."
+    },
+    "source": "Official Source (NTA / JoSAA Guidelines)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["jee-main", "admissions", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-jeem-02",
+    "topic": "JEE Main Subjects",
+    "concept": "jee-main-pcm",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "JEE Main",
+    "categoryId": "jee-main",
+    "chapter": "Exam Subjects",
+    "question": "Paper 1 (B.E./B.Tech) of JEE Main tests candidates across which three Class 11–12 core subjects?",
+    "options": [
+      "Physics, Chemistry, and Mathematics",
+      "Physics, Chemistry, and Biology",
+      "History, Economics, and Mathematics",
+      "Computer Programming, Accounting, and Physics"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "JEE Main Paper 1 (for B.E./B.Tech engineering admissions) is uniformly based on Physics, Chemistry, and Mathematics.",
+      "concept": "PCM Engineering Entrance Core",
+      "shortcut": "B.Tech/B.E. via JEE Main Paper 1 = PCM (Physics, Chemistry, Math).",
+      "commonTrap": "Computer programming is NOT a separate mandatory subject in JEE Main Paper 1."
+    },
+    "source": "Official Source (NTA JEE Main Pattern)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["jee-main", "pcm"],
+    "verified": true
+  },
+  {
+    "id": "qf-jeem-03",
+    "topic": "JEE Main Percentile vs Raw Marks",
+    "concept": "jee-percentile",
+    "difficulty": "Hard",
+    "questionType": "single",
+    "subject": "JEE Main",
+    "categoryId": "jee-main",
+    "chapter": "Scoring & Normalization",
+    "question": "Why does NTA publish normalized percentile scores alongside raw marks in JEE Main multi-shift exams?",
+    "options": [
+      "To ensure fairness across different exam shifts that may vary slightly in question paper difficulty",
+      "To erase Physics and Chemistry marks from final counseling rankings",
+      "To randomly award identical ranks to all candidates in the same city",
+      "Because percentage marks and percentile scores are always mathematically identical"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Multi-shift sessions can have slight difficulty differences; normalization compares each candidate against peers within their own shift to compute relative standing fairly.",
+      "concept": "Shift Normalization & Percentile",
+      "shortcut": "Percentile = percentage of candidates scoring equal to or below you in your shift.",
+      "commonTrap": "Percentile (relative rank out of 100) is NOT the same as your raw percentage score."
+    },
+    "source": "Official Source (NTA Normalization Policy)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["jee-main", "percentile", "comparison"],
+    "verified": true
+  },
+  {
+    "id": "qf-jeem-04",
+    "topic": "JEE Main Negative Marking Habit",
+    "concept": "jee-marking-strategy",
+    "difficulty": "Medium",
+    "questionType": "scenario",
+    "subject": "JEE Main",
+    "categoryId": "jee-main",
+    "chapter": "Exam Strategy",
+    "question": "In a +4 / -1 JEE-style MCQ section, why can wild blind guessing across uncertain questions lower a student's overall rank?",
+    "options": [
+      "Wrong guesses subtract marks (-1), dragging down earned positive marks from confident answers",
+      "Unanswered questions incur a -4 penalty in JEE Main",
+      "Correct answers lose points whenever another question is left blank",
+      "Speed guarantees full marks even when answers are incorrect"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "With +4 for correct, -1 for wrong, and 0 for unanswered, strategic skipping protects your positive score when you cannot eliminate options.",
+      "concept": "Negative Marking Accuracy Trade-off",
+      "shortcut": "Accuracy beats blind guessing under +4 / -1 rules.",
+      "commonTrap": "Leaving an unknown MCQ blank scores 0 (not negative)—protect your earned marks!"
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["jee-main", "strategy"],
+    "verified": true
+  }
+]

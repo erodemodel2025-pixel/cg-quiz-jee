@@ -1,0 +1,30 @@
+[
+  {
+    "id": "qf-iiit-01",
+    "topic": "IIIT Meaning & Focus",
+    "concept": "iiit-focus",
+    "difficulty": "Medium",
+    "questionType": "single",
+    "subject": "IIITs",
+    "categoryId": "colleges",
+    "chapter": "Institute Types",
+    "question": "What does IIIT stand for, and what is its academic specialization focus?",
+    "options": [
+      "Indian Institute of Information Technology, strongly focused on CSE, IT, Data Science, and Electronics",
+      "International Institute of Industrial Turbines, focused solely on mining",
+      "Institute of Insurance and Tax, focused on banking commerce",
+      "Indian Institute of Agricultural Irrigation only"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "IIITs specialize heavily in computing, IT, AI, electronics, and communication curricula—admitting largely via JEE Main (with select IIITs also using additional channels).",
+      "concept": "IIIT Specialization Profile",
+      "shortcut": "IIIT = Information Technology, CSE, AI & ECE focus.",
+      "commonTrap": "Unlike broad IITs/NITs offering Civil or Metallurgy, most IIITs concentrate on CS & ECE branches."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["iiit", "colleges", "cse"],
+    "verified": true
+  }
+]

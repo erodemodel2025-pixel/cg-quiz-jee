@@ -1,0 +1,114 @@
+[
+  {
+    "id": "qf-car-01",
+    "topic": "AI & Software Pathway",
+    "concept": "cse-ai-career",
+    "difficulty": "Medium",
+    "questionType": "scenario",
+    "subject": "Engineering Careers",
+    "categoryId": "careers",
+    "chapter": "Interest Alignment",
+    "question": "A student enjoys mathematics, programming, and logical problem solving and wants to work in software architecture and AI. Which branch aligns most closely with these interests?",
+    "options": [
+      "Computer Science and Engineering (CSE)",
+      "Civil Engineering",
+      "Metallurgical and Materials Engineering",
+      "Chemical Process Engineering"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "CSE centers on algorithms, discrete math, software engineering, and machine learning foundations that directly power AI and software roles.",
+      "concept": "Branch-Skill Alignment",
+      "shortcut": "Math + Coding + AI/Software goal -> CSE.",
+      "commonTrap": "While other branches can learn coding as an elective, CSE makes computing core."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["careers", "scenario", "cse", "ai"],
+    "verified": true
+  },
+  {
+    "id": "qf-car-02",
+    "topic": "Semiconductor Chip Design",
+    "concept": "semiconductor-career",
+    "difficulty": "Expert",
+    "questionType": "scenario",
+    "subject": "Engineering Careers",
+    "categoryId": "careers",
+    "chapter": "Deep Tech Careers",
+    "question": "A student wants to work in semiconductor processor design and loves digital electronics, Verilog/HDL, and computer architecture. Which branch and skill combination is most aligned?",
+    "options": [
+      "ECE with digital logic design, VLSI systems, and computer architecture skills",
+      "Civil Engineering with surveying and concrete mix design",
+      "Biotechnology with fermentation and wet-lab genetics",
+      "Textile Engineering with weaving loom mechanics"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Semiconductor VLSI roles demand strong digital electronics, hardware description languages (Verilog/VHDL), transistor physics, and computer architecture.",
+      "concept": "VLSI & Chip Design Pathway",
+      "shortcut": "Semiconductors + Digital Systems + Architecture = ECE + VLSI.",
+      "commonTrap": "Application web development alone does not prepare you for silicon chip architecture."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["careers", "challenge", "vlsi", "ece"],
+    "verified": true
+  },
+  {
+    "id": "qf-car-03",
+    "topic": "Hardware + Coding Careers",
+    "concept": "embedded-robotics-career",
+    "difficulty": "Medium",
+    "questionType": "career_path",
+    "subject": "Engineering Careers",
+    "categoryId": "careers",
+    "chapter": "Interdisciplinary Roles",
+    "question": "Which engineering career directly combines electronic hardware circuits with C/C++ programming on microcontrollers?",
+    "options": [
+      "Embedded Systems & Firmware Engineer",
+      "Structural Bridge Inspector",
+      "Petroleum Refinery Chemist",
+      "Geotechnical Soil Surveyor"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Embedded firmware engineers bridge hardware schematics, sensors, and real-time C/C++ or Rust code inside medical devices, satellites, EVs, and robots.",
+      "concept": "Hardware-Software Bridge Careers",
+      "shortcut": "Circuits + Microcontrollers + C/C++ = Embedded Systems Engineer.",
+      "commonTrap": "Pure frontend web roles don't typically touch hardware registers or GPIO pins."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["careers", "embedded", "hardware"],
+    "verified": true
+  },
+  {
+    "id": "qf-car-04",
+    "topic": "EV & Clean Mobility Career",
+    "concept": "ev-interdisciplinary",
+    "difficulty": "Hard",
+    "questionType": "multiple",
+    "subject": "Engineering Careers",
+    "categoryId": "careers",
+    "chapter": "Modern Industry Teams",
+    "question": "Electric Vehicle (EV) engineering teams typically combine experts from which engineering branches? (Select all correct answers.)",
+    "options": [
+      "Electrical Engineering (motors, inverters, battery management)",
+      "Mechanical Engineering (chassis, thermal cooling, aerodynamics)",
+      "Computer Science / ECE (autonomous software & embedded controllers)",
+      "Ancient Archaeology (stone carving)"
+    ],
+    "answer": [0, 1, 2],
+    "explanation": {
+      "why": "Modern EVs are multi-disciplinary systems requiring electrical powertrains, mechanical thermal/structural design, and embedded/AI software.",
+      "concept": "Interdisciplinary Engineering Systems",
+      "shortcut": "Select EEE + Mechanical + CSE/ECE; exclude non-engineering options.",
+      "commonTrap": "Real industries rarely use just one branch—complex products combine multiple disciplines."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["careers", "multiple", "ev"],
+    "verified": true
+  }
+]

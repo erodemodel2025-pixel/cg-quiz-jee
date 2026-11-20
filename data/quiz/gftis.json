@@ -1,0 +1,31 @@
+[
+  {
+    "id": "qf-gfti-01",
+    "topic": "GFTI Meaning & Admission",
+    "concept": "gfti-meaning",
+    "difficulty": "Medium",
+    "questionType": "single",
+    "subject": "GFTIs",
+    "categoryId": "colleges",
+    "chapter": "Institute Types",
+    "question": "What does GFTI stand for in JoSAA counseling?",
+    "options": [
+      "Government Funded Technical Institute, participating in centralized admission using JEE Main ranks",
+      "General Foreign Tuition Institute, requiring international visas only",
+      "Global Financial Training Initiative, offering only MBA finance degrees",
+      "Guaranteed Faculty Teaching License for primary schools"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "GFTIs (Government Funded Technical Institutes) are central/state government-supported engineering colleges that participate alongside NITs and IIITs in JoSAA/CSAB using JEE Main ranks.",
+      "concept": "GFTI Role in National Admissions",
+      "shortcut": "GFTI = Government Funded Technical Institute -> JEE Main + JoSAA.",
+      "commonTrap": "Many good GFTIs remain overlooked by students—they join NITs and IIITs on the same JoSAA portal."
+    },
+    "source": "Official Source (JoSAA Guidelines)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["gfti", "colleges", "josaa"],
+    "verified": true
+  }
+]

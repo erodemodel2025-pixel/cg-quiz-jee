@@ -1,0 +1,177 @@
+[
+  {
+    "id": "qf-fair-01",
+    "topic": "What Engineers Build",
+    "concept": "engineering-impact-fair",
+    "difficulty": "Easy",
+    "questionType": "career_path",
+    "subject": "Career Fair",
+    "categoryId": "career-fair",
+    "chapter": "Welcome to Engineering",
+    "question": "Suppose you love designing smart medical wearables that measure heart rate and alert doctors via mobile apps. Which engineering combination aligns best?",
+    "options": [
+      "Electronics/Embedded Sensors + Programming/Mobile App Development + Biomedical/AI Signal Processing",
+      "Medieval poetry translation without electronics or software",
+      "Brick masonry without sensors, circuits, or code",
+      "Avoiding both hardware and software entirely"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Modern products blend disciplines: ECE sensors capture biological signals, CSE/programming builds the app and cloud pipeline, and AI cleans noisy signals.",
+      "concept": "Interdisciplinary Product Engineering",
+      "shortcut": "Hardware Sensors (ECE) + Software/Cloud (CSE) + Data Intelligence (AI).",
+      "commonTrap": "You don't have to pick only one narrow box—modern engineering teams combine branches!"
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["career-fair", "interdisciplinary", "career-path"],
+    "verified": true
+  },
+  {
+    "id": "qf-fair-02",
+    "topic": "First-Year Engineering Survival",
+    "concept": "freshman-habits",
+    "difficulty": "Easy",
+    "questionType": "multiple",
+    "subject": "Career Fair",
+    "categoryId": "career-fair",
+    "chapter": "Student Success",
+    "question": "Which habits in your first year of engineering build a strong launchpad for internships and careers? (Select all that apply)",
+    "options": [
+      "Writing small working code or hardware projects outside class assignments",
+      "Using Git/version control and documenting projects cleanly",
+      "Collaborating with peers in technical clubs, hackathons, or build teams",
+      "Waiting until final semester placement week to open an IDE or lab kit"
+    ],
+    "answer": [0, 1, 2],
+    "explanation": {
+      "why": "Small consistent projects, version-controlled portfolios, and peer collaboration compound rapidly over four college years.",
+      "concept": "Early Portfolio Compounding",
+      "shortcut": "Build small -> Commit to Git -> Collaborate in clubs -> Iterate early.",
+      "commonTrap": "Degrees alone open fewer doors than degrees backed by demonstrable skills and real builds."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["career-fair", "skills", "multiple"],
+    "verified": true
+  },
+  {
+    "id": "qf-fair-03",
+    "topic": "Engineering Entrance Map",
+    "concept": "fair-entrance-overview",
+    "difficulty": "Medium",
+    "questionType": "match",
+    "subject": "Career Fair",
+    "categoryId": "career-fair",
+    "chapter": "Admission Gateways",
+    "question": "Match each pathway term in List I to what it unlocks in List II.",
+    "matchPairs": {
+      "left": [
+        "JEE Main",
+        "JEE Advanced",
+        "TNEA",
+        "GATE"
+      ],
+      "right": [
+        "Tamil Nadu state B.E./B.Tech admission via Class 12 PCM cutoff",
+        "M.Tech / PhD admissions and many PSU engineering recruitments",
+        "Primary gateway to IIT undergraduate B.Tech programs",
+        "National gateway to NITs, IIITs, GFTIs & qualifier for JEE Advanced"
+      ]
+    },
+    "options": [],
+    "answer": [3, 2, 0, 1],
+    "explanation": {
+      "why": "Each exam/counseling system maps to a distinct stage: JEE Main (NIT/IIIT/GFTI), JEE Advanced (IIT), TNEA (TN state B.E./B.Tech), and GATE (postgrad/PSUs).",
+      "concept": "Indian Engineering Gateway Map",
+      "shortcut": "UG National: JEE Main -> JEE Adv | UG TN State: TNEA | PG/PSU: GATE.",
+      "commonTrap": "Parents and students often confuse JoSAA (central counseling) with state processes like TNEA."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["career-fair", "admissions", "match"],
+    "verified": true
+  },
+  {
+    "id": "qf-fair-04",
+    "topic": "Unit Consistency Check",
+    "concept": "si-unit-check",
+    "difficulty": "Medium",
+    "questionType": "scenario",
+    "subject": "Career Fair",
+    "categoryId": "career-fair",
+    "chapter": "Engineering Thinking",
+    "question": "In 1999, NASA's Mars Climate Orbiter was lost because one software module output force in pound-seconds while another expected SI newton-seconds. What engineering lesson does this prove?",
+    "options": [
+      "Explicit SI units, interface specifications, and integration testing are mission-critical",
+      "Unit labels can safely be omitted in aerospace code to save memory",
+      "Only mechanical hardware needs testing; software never needs checks",
+      "Imperial and metric units always share identical numerical values"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Every interface between two engineering subsystems must define exact physical units and be verified by automated integration tests.",
+      "concept": "Systems Integration & Units",
+      "shortcut": "Always check units at subsystem boundaries (N·s ≠ lbf·s).",
+      "commonTrap": "Even mathematically 'correct' code fails catastrophically when two teams assume different units."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["career-fair", "engineering-basics", "scenario"],
+    "verified": true
+  },
+  {
+    "id": "qf-fair-05",
+    "topic": "Career Fair Branch Quiz",
+    "concept": "sustainability-green-eng",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Career Fair",
+    "categoryId": "career-fair",
+    "chapter": "Future Engineering",
+    "question": "If you are excited by designing EV battery packs, solar microgrids, and high-efficiency motors, which engineering path fits best?",
+    "options": [
+      "Electrical (EEE) / Power Electronics combined with Mechanical thermal design",
+      "Ancient linguistics exclusively",
+      "Print newspaper typesetting",
+      "None — electric grids require zero engineering"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Clean energy and electric mobility sit at the intersection of Electrical Engineering (power converters, batteries, grids) and Mechanical Engineering (cooling and packaging).",
+      "concept": "Green Energy & EV Careers",
+      "shortcut": "EVs & Grids = Electrical Power Electronics + Mechanical Thermal Systems.",
+      "commonTrap": "EEE is no longer just traditional substations—it drives EVs, robotics power, and renewables."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["career-fair", "electrical", "mechanical"],
+    "verified": true
+  },
+  {
+    "id": "qf-fair-06",
+    "topic": "Engineering Mindset True/False",
+    "concept": "lifelong-learning",
+    "difficulty": "Easy",
+    "questionType": "truefalse",
+    "subject": "Career Fair",
+    "categoryId": "career-fair",
+    "chapter": "Growth Mindset",
+    "question": "True or False: Because engineering tools and frameworks evolve rapidly, strong problem-solving fundamentals and continuous learning matter more over a 30-year career than memorizing one tool.",
+    "options": [
+      "True — fundamentals let engineers adapt across new languages, hardware, and AI tools",
+      "False — whatever software tool you learn in Semester 1 never changes for 30 years"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Tools, frameworks, and libraries change every few years, whereas math, physics, algorithms, circuits, and structured debugging remain timeless superpowers.",
+      "concept": "Timeless Fundamentals vs Ephemeral Tools",
+      "shortcut": "Tools change fast; physics, math, and systems thinking endure.",
+      "commonTrap": "Chasing only syntax trends without understanding core systems leaves engineers fragile when stacks evolve."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["career-fair", "mindset", "truefalse"],
+    "verified": true
+  }
+]

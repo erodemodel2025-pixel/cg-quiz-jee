@@ -1,0 +1,179 @@
+[
+  {
+    "id": "qf-br-01",
+    "topic": "CSE Meaning & Scope",
+    "concept": "cse-core",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Engineering Branches",
+    "categoryId": "cs",
+    "chapter": "Branch Explorer",
+    "question": "What does the engineering branch abbreviation CSE stand for?",
+    "options": [
+      "Computer Science and Engineering",
+      "Chemical Systems Engineering",
+      "Civil Structure Estimation",
+      "Central Semiconductor Electronics"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "CSE stands for Computer Science and Engineering, covering algorithms, software systems, operating systems, databases, and computing theory.",
+      "concept": "CSE Terminology",
+      "shortcut": "CSE = Computer Science and Engineering.",
+      "commonTrap": "Do not mix up CSE (computing) with ECE (electronics & communication)."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["branches", "cse", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-br-02",
+    "topic": "ECE & Embedded Systems",
+    "concept": "ece-embedded",
+    "difficulty": "Medium",
+    "questionType": "single",
+    "subject": "Engineering Branches",
+    "categoryId": "electronics",
+    "chapter": "Branch Explorer",
+    "question": "Which engineering branch is most closely associated with microcontrollers, embedded systems, VLSI chip design, and communication hardware?",
+    "options": [
+      "Electronics and Communication Engineering (ECE)",
+      "Civil Engineering",
+      "Metallurgical Engineering",
+      "Chemical Engineering"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "ECE connects hardware and low-level software through digital circuits, embedded microcontrollers, VLSI chips, and wireless signal transmission.",
+      "concept": "ECE Core Domains",
+      "shortcut": "Embedded systems + signals + VLSI chips = ECE.",
+      "commonTrap": "High-voltage power grids belong more to EEE, whereas chips and embedded devices sit in ECE."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["branches", "ece", "embedded"],
+    "verified": true
+  },
+  {
+    "id": "qf-br-03",
+    "topic": "Branch-to-Career Mapping",
+    "concept": "branch-career-match",
+    "difficulty": "Medium",
+    "questionType": "match",
+    "subject": "Engineering Branches",
+    "categoryId": "careers",
+    "chapter": "Branch Matching",
+    "question": "Match each core engineering branch on the left to its typical specialization on the right:",
+    "matchPairs": {
+      "left": [
+        "CSE",
+        "ECE",
+        "Civil Engineering",
+        "Mechanical Engineering"
+      ],
+      "right": [
+        "Embedded Systems & VLSI",
+        "Structural & Bridge Design",
+        "Software & AI Systems",
+        "Thermodynamics & Machine Design"
+      ]
+    },
+    "options": [],
+    "answer": [2, 0, 1, 3],
+    "explanation": {
+      "why": "CSE maps to Software & AI; ECE maps to Embedded Systems & VLSI; Civil maps to Structural & Bridge Design; Mechanical maps to Thermodynamics & Machine Design.",
+      "concept": "Engineering Discipline Specialization",
+      "shortcut": "Software->CSE, Chips->ECE, Bridges->Civil, Engines/CAD->Mechanical.",
+      "commonTrap": "Look carefully at hardware (ECE) vs machines/thermo (Mechanical)."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["branches", "match", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-br-04",
+    "topic": "Civil Engineering Variant",
+    "concept": "civil-structures",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Engineering Branches",
+    "categoryId": "civil",
+    "chapter": "Branch Explorer",
+    "question": "Which engineering discipline is most directly involved in designing load-bearing buildings, bridges, tunnels, and water infrastructure?",
+    "options": [
+      "Civil Engineering",
+      "Computer Science Engineering",
+      "Biotechnology",
+      "Aerospace Propulsion"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Civil engineers analyze structural loads, soil foundations, concrete/steel behavior, and public transport/water infrastructure.",
+      "concept": "Structural & Infrastructure Design",
+      "shortcut": "Load-bearing structures + public infrastructure = Civil Engineering.",
+      "commonTrap": "Mechanical engineers design moving machines; Civil engineers design fixed infrastructure."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["branches", "civil"],
+    "verified": true
+  },
+  {
+    "id": "qf-br-05",
+    "topic": "ECE vs EEE Distinction",
+    "concept": "ece-vs-eee",
+    "difficulty": "Hard",
+    "questionType": "comparison",
+    "subject": "Engineering Branches",
+    "categoryId": "electrical",
+    "chapter": "Branch Comparison",
+    "question": "Which comparison accurately distinguishes Electrical & Electronics Engineering (EEE) from Electronics & Communication Engineering (ECE)?",
+    "options": [
+      "EEE places greater emphasis on power generation, machines, and high-voltage grids, while ECE focuses more on signal processing, VLSI, and communication",
+      "EEE never uses circuit analysis, whereas ECE only studies mechanical gears",
+      "ECE exclusively studies high-voltage dams, while EEE studies only mobile apps",
+      "Both branches forbid students from taking programming or math electives"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "EEE emphasizes electric machines, transformers, power electronics, and grids, whereas ECE leans toward semiconductors, communication systems, and embedded logic.",
+      "concept": "EEE vs ECE Focus",
+      "shortcut": "EEE = Power, Motors, Grids; ECE = Chips, Signals, Communication.",
+      "commonTrap": "Both share foundational circuit theory and programming, so don't treat them as opposites."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["branches", "comparison", "eee", "ece"],
+    "verified": true
+  },
+  {
+    "id": "qf-br-06",
+    "topic": "CSE vs ECE for AI",
+    "concept": "cse-ece-ai",
+    "difficulty": "Hard",
+    "questionType": "comparison",
+    "subject": "Engineering Branches",
+    "categoryId": "cs",
+    "chapter": "Branch Comparison",
+    "question": "How do CSE and ECE typically complement AI-related engineering careers?",
+    "options": [
+      "CSE focuses on AI software models, algorithms, and data pipelines, while ECE contributes AI hardware accelerators, edge sensors, and embedded deployment",
+      "CSE handles only hardware soldering, while ECE writes only web stylesheets",
+      "Only CSE graduates are legally permitted to learn Python or linear algebra",
+      "Neither branch uses probability or calculus in intelligent systems"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "AI needs both algorithmic models/software stacks (strong in CSE) and specialized silicon/edge devices like NPUs and sensor fusion (strong in ECE).",
+      "concept": "Software vs Edge-Hardware AI Pathways",
+      "shortcut": "AI Models/Cloud = CSE strength; Edge AI Chips/Sensors = ECE strength.",
+      "commonTrap": "AI spans both software and hardware—both branches can build careers in AI."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["branches", "ai", "cse", "ece"],
+    "verified": true
+  }
+]

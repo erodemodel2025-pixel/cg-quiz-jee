@@ -1,0 +1,167 @@
+[
+  {
+    "id": "qf-mix-01",
+    "topic": "JEE Main Percentile Concept Variant",
+    "concept": "jee-percentile",
+    "difficulty": "Medium",
+    "questionType": "single",
+    "subject": "Mixed Engineering",
+    "categoryId": "jee-main",
+    "chapter": "Entrance Clarity",
+    "question": "Two candidates appear in different JEE Main shifts and score different raw marks, yet receive similar percentile scores. Why can this happen legitimately?",
+    "options": [
+      "Percentile reflects relative rank within each shift's difficulty distribution, not unadjusted raw marks",
+      "Percentiles are assigned randomly without checking any answers",
+      "Shift 2 always doubles every score automatically",
+      "One candidate's score is replaced by their Class 5 marks"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Because shift difficulty varies slightly, scoring 170 in a harder shift can place a candidate at the same relative percentile as 190 in an easier shift.",
+      "concept": "Shift Normalization & Percentile",
+      "shortcut": "Harder shift -> lower raw marks for the same top percentile.",
+      "commonTrap": "Comparing raw marks directly across two different shifts without checking difficulty leads to false conclusions."
+    },
+    "source": "Official Source (NTA Normalization Policy)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["mixed", "jee-main", "variant"],
+    "verified": true
+  },
+  {
+    "id": "qf-mix-02",
+    "topic": "Iterative Design Variant",
+    "concept": "iterative-design",
+    "difficulty": "Medium",
+    "questionType": "scenario",
+    "subject": "Mixed Engineering",
+    "categoryId": "engineering",
+    "chapter": "Engineering Execution",
+    "question": "A drone team's first 3D-printed landing gear cracks during a drop test. What is the best engineering next step?",
+    "options": [
+      "Inspect the fracture point, adjust fillet radius or material infill, and re-test a revised prototype",
+      "Hide the test result and ship the weak landing gear unchanged",
+      "Abandon the entire project permanently after the first crack",
+      "Paint over the crack without measuring load stress"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Failure analysis followed by geometry/material revision and verification testing is the heart of reliable engineering design.",
+      "concept": "Iterative Engineering Design",
+      "shortcut": "Analyze failure mode -> Redesign stress concentration -> Re-test.",
+      "commonTrap": "Skipping failure-mode root cause analysis repeats the same flaw in future builds."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["mixed", "design", "variant"],
+    "verified": true
+  },
+  {
+    "id": "qf-mix-03",
+    "topic": "TNEA Cutoff Formula Variant",
+    "concept": "tnea-merit-basis",
+    "difficulty": "Medium",
+    "questionType": "integer",
+    "subject": "Mixed Engineering",
+    "categoryId": "admissions",
+    "chapter": "Admissions Math",
+    "question": "In TNEA's standard 200-mark cutoff calculation, if a student scores 92 in Mathematics (out of 100), 86 in Physics (out of 100), and 84 in Chemistry (out of 100), what is their TNEA cutoff score (out of 200)? Enter a number.",
+    "options": [],
+    "answer": "177",
+    "explanation": {
+      "why": "TNEA cutoff = Math (92) + Physics/2 (86/2 = 43) + Chemistry/2 (84/2 = 42) = 92 + 43 + 42 = 177.",
+      "concept": "TNEA 200-Point Cutoff Formula",
+      "shortcut": "Cutoff = Math + (Physics + Chemistry) / 2 = 92 + 85 = 177.",
+      "commonTrap": "Don't divide Mathematics by 2! Only Physics and Chemistry are halved to 50 each."
+    },
+    "source": "Official Source (TNEA / DoTE Guidelines)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["mixed", "tnea", "integer", "variant"],
+    "verified": true
+  },
+  {
+    "id": "qf-mix-04",
+    "topic": "JoSAA Upgrade Logic Variant",
+    "concept": "josaa-freeze-float-slide",
+    "difficulty": "Hard",
+    "questionType": "scenario",
+    "subject": "Mixed Engineering",
+    "categoryId": "admissions",
+    "chapter": "Counseling Decisions",
+    "question": "A candidate gets their #8 choice (NIT Trichy – Mechanical) in JoSAA Round 1, loves the NIT campus, and ONLY wants to upgrade if NIT Trichy – ECE (#4 choice) opens up—without moving to another campus (#1–#3). Which option should they choose?",
+    "options": [
+      "Slide — upgrades only to higher preferences within the currently allotted institute",
+      "Freeze — locks NIT Trichy Mechanical with zero upgrades",
+      "Float — could move them to choices #1–#3 at other institutes",
+      "Withdraw — cancels their counseling seat completely"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Slide keeps you at your currently allotted institute (NIT Trichy) while allowing upgrades to higher-priority branches listed above #8 inside that same institute.",
+      "concept": "Counseling Upgrade Rules",
+      "shortcut": "Same campus, higher branch = Slide.",
+      "commonTrap": "Choosing Float when you no longer want higher choices at other institutes could automatically shift you away from your preferred campus."
+    },
+    "source": "Official Source (JoSAA Business Rules)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["mixed", "josaa", "scenario", "variant"],
+    "verified": true
+  },
+  {
+    "id": "qf-mix-05",
+    "topic": "Cybersecurity & Cloud Architecture Variant",
+    "concept": "least-privilege-security",
+    "difficulty": "Hard",
+    "questionType": "comparison",
+    "subject": "Mixed Engineering",
+    "categoryId": "ai",
+    "chapter": "Cloud & Security",
+    "question": "Why does the Principle of Least Privilege improve cloud software resilience?",
+    "options": [
+      "Each service only receives the exact permissions it needs, limiting blast radius if one component is compromised",
+      "Every intern and background script receives full root admin access to simplify passwords",
+      "It disables TLS encryption across public API routes",
+      "It removes all logging and authentication checks"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Granting minimal required permissions prevents a compromised microservice or token from accessing unrelated databases or infrastructure.",
+      "concept": "Principle of Least Privilege",
+      "shortcut": "Minimum permissions needed -> Minimum damage if breached.",
+      "commonTrap": "Sharing one super-admin API key across services violates least privilege and breaks auditing."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["mixed", "security", "cloud"],
+    "verified": true
+  },
+  {
+    "id": "qf-mix-06",
+    "topic": "GATE Dual Benefit Variant",
+    "concept": "gate-purpose",
+    "difficulty": "Medium",
+    "questionType": "truefalse",
+    "subject": "Mixed Engineering",
+    "categoryId": "higher-studies",
+    "chapter": "Postgrad & PSUs",
+    "question": "True or False: A strong GATE score is valid exclusively for M.Tech college admissions and is never used by Public Sector Undertakings (PSUs).",
+    "options": [
+      "True — GATE is strictly academic and never used by PSUs",
+      "False — many major PSUs use GATE scores to shortlist graduate engineering hires"
+    ],
+    "answer": 1,
+    "explanation": {
+      "why": "GATE scores serve a dual purpose in India: postgraduate M.Tech/PhD admissions and PSU technical engineer shortlisting.",
+      "concept": "GATE Dual Pathway",
+      "shortcut": "GATE = M.Tech/PhD + PSU shortlisting.",
+      "commonTrap": "Many students skip GATE thinking it's only for teaching or degrees, missing top PSU openings."
+    },
+    "source": "Official Source (GATE Information Brochure)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["mixed", "gate", "variant"],
+    "verified": true
+  }
+]

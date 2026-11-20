@@ -1,0 +1,87 @@
+[
+  {
+    "id": "qf-tnea-01",
+    "topic": "TNEA Basis of Admission",
+    "concept": "tnea-merit-basis",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "TNEA",
+    "categoryId": "admissions",
+    "chapter": "Tamil Nadu Engineering",
+    "question": "How does Tamil Nadu Engineering Admissions (TNEA) primarily prepare its merit rank list for B.E./B.Tech seats in participating state colleges?",
+    "options": [
+      "Using normalized Class 12 Mathematics, Physics, and Chemistry marks (out of 200)",
+      "Using only JEE Advanced All India Rank",
+      "Through a physical fitness obstacle course without academic marks",
+      "Solely from Class 8 middle-school attendance records"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "TNEA computes an academic cutoff out of 200 based on Class 12 Mathematics (100) + Physics (50) + Chemistry (50) after statutory normalization across boards.",
+      "concept": "TNEA 200-Point Cutoff Formula",
+      "shortcut": "TNEA Cutoff (/200) = Math (/100) + Physics (/50) + Chemistry (/50).",
+      "commonTrap": "TNEA is a single-window counseling process based on Class 12 PCM marks, not a separate state entrance test."
+    },
+    "source": "Official Source (TNEA / DoTE Guidelines)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["tnea", "admissions", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-tnea-02",
+    "topic": "TNEA Counseling Choice Filling",
+    "concept": "tnea-choice-order",
+    "difficulty": "Medium",
+    "questionType": "scenario",
+    "subject": "TNEA",
+    "categoryId": "admissions",
+    "chapter": "Counseling Strategy",
+    "question": "During TNEA online choice filling, a student wants College X – ECE as their #1 preference and College Y – CSE as their #2 preference. In what order should they list them?",
+    "options": [
+      "List College X – ECE first (Preference #1) and College Y – CSE second (Preference #2)",
+      "List safest backup colleges at #1 so the system skips dream choices",
+      "Enter only a single choice across the entire counseling round",
+      "Order choices alphabetically by city name regardless of branch interest"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Counseling algorithms scan your choice list strictly from top (#1) downward and allot the highest-ranked seat available at your rank.",
+      "concept": "Priority Order in Seat Allotment",
+      "shortcut": "Always order choices strictly from most-desired (#1) to fallback options.",
+      "commonTrap": "Never put a low-interest backup college at #1—if available, it gets locked and higher preference numbers below it are ignored."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["tnea", "counseling", "scenario"],
+    "verified": true
+  },
+  {
+    "id": "qf-tnea-03",
+    "topic": "TNEA vs JEE Main Scope",
+    "concept": "tnea-vs-jee",
+    "difficulty": "Medium",
+    "questionType": "comparison",
+    "subject": "TNEA",
+    "categoryId": "admissions",
+    "chapter": "State vs National Pathways",
+    "question": "Which comparison accurately distinguishes TNEA from JEE Main / JoSAA?",
+    "options": [
+      "TNEA covers Tamil Nadu state engineering seats using Class 12 PCM marks, whereas JEE Main/JoSAA covers national institutes like NITs, IIITs, and GFTIs via entrance rank",
+      "TNEA is required to enter IIT Bombay and IIT Madras via JEE Advanced",
+      "JEE Main automatically reserves all state Anna University seats without TNEA application",
+      "Neither pathway uses Mathematics or Physics marks or knowledge"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "TNEA is Tamil Nadu's state counseling mechanism anchored on Class 12 PCM marks, while JoSAA/CSAB uses JEE Main and JEE Advanced ranks for central institutes.",
+      "concept": "Dual Track Applications",
+      "shortcut": "State seats (TNEA) = Board PCM cutoff; Central NIT/IIIT/IIT seats (JoSAA) = JEE rank.",
+      "commonTrap": "Applying for JEE Main does NOT automatically register you for state counseling processes like TNEA."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["tnea", "jee-main", "comparison"],
+    "verified": true
+  }
+]

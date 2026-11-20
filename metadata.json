@@ -1,0 +1,8 @@
+{
+  "name": "CG QUIZ — The Engineering Arcade",
+  "description": "Futuristic retro 2D pixel-art engineering arcade featuring 6 playable engineering mini-games, live timed competitions, server-validated leaderboards, and original chiptune music.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

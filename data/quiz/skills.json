@@ -1,0 +1,84 @@
+[
+  {
+    "id": "qf-skl-01",
+    "topic": "Core AI Career Skills",
+    "concept": "ai-skill-combo",
+    "difficulty": "Medium",
+    "questionType": "single",
+    "subject": "Engineering Skills",
+    "categoryId": "programming",
+    "chapter": "Skill Building",
+    "question": "Which combination of foundational skills is particularly useful for an AI & Data Science engineering career?",
+    "options": [
+      "Linear algebra, probability, Python programming, and data structures",
+      "Hand drafting only, with no programming or statistics",
+      "High-voltage transformer winding without data handling",
+      "Memorizing assembly opcodes without probability theory"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "AI relies on vectors/matrices (linear algebra), uncertainty modeling (probability), Python ecosystems, and clean algorithmic data pipelines.",
+      "concept": "AI Engineering Skill Stack",
+      "shortcut": "Math (Linear Algebra + Probability) + Python + Algorithms.",
+      "commonTrap": "Coding alone isn't enough for strong ML engineering—math intuition matters."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["skills", "ai", "programming"],
+    "verified": true
+  },
+  {
+    "id": "qf-skl-02",
+    "topic": "Version Control in Teams",
+    "concept": "git-collaboration",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Engineering Skills",
+    "categoryId": "programming",
+    "chapter": "Software Workflow",
+    "question": "Why do software and robotics teams use Git and version control systems on engineering projects?",
+    "options": [
+      "To track code history, collaborate across branches safely, and roll back bugs cleanly",
+      "To physically increase CPU clock speed above factory limits",
+      "To replace all automated software testing with manual printing",
+      "To prevent more than one engineer from ever reading the codebase"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Git records every change, enables parallel feature branches and code reviews, and lets teams revert regressions quickly.",
+      "concept": "Collaborative Version Control",
+      "shortcut": "Git = history tracking + safe team collaboration + rollback.",
+      "commonTrap": "Git manages source versions; it does not boost hardware clock speed."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["skills", "git", "software"],
+    "verified": true
+  },
+  {
+    "id": "qf-skl-03",
+    "topic": "Communication & Teamwork",
+    "concept": "soft-skills-engineering",
+    "difficulty": "Easy",
+    "questionType": "truefalse",
+    "subject": "Engineering Skills",
+    "categoryId": "career-fair",
+    "chapter": "Career Readiness",
+    "question": "True or False: Technical writing, teamwork, and clear presentation are essential engineering skills alongside math and coding.",
+    "options": [
+      "True — real engineering projects require documenting designs and collaborating across teams",
+      "False — engineers work completely alone and never write design documents"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Modern engineering systems are built by teams; clear specifications, safety documentation, and reviews prevent costly design errors.",
+      "concept": "Engineering Communication",
+      "shortcut": "Great engineers explain complex ideas clearly and collaborate well.",
+      "commonTrap": "Technical brilliance still needs clear team communication to ship safely."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["skills", "career-fair", "communication"],
+    "verified": true
+  }
+]

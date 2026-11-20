@@ -1,0 +1,95 @@
+[
+  {
+    "id": "qf-adm-01",
+    "topic": "JoSAA Centralized Counseling",
+    "concept": "josaa-purpose",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Admissions & JoSAA",
+    "categoryId": "admissions",
+    "chapter": "Counseling Process",
+    "question": "What role does JoSAA (Joint Seat Allocation Authority) play after JEE Main and JEE Advanced results are declared?",
+    "options": [
+      "It manages unified seat allocation across IITs, NITs, IIITs, and participating GFTIs",
+      "It conducts Class 10 board examinations across all Indian states",
+      "It grades university semester lab notebooks manually",
+      "It issues driver's licenses for robotics competitions"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "JoSAA coordinates joint registration, choice filling, and multi-round seat allotment across central institutes (IIT+ System & NIT+ System) in one portal.",
+      "concept": "Centralized Seat Allocation",
+      "shortcut": "JoSAA = Joint Seat Allocation Authority for IITs + NITs + IIITs + GFTIs.",
+      "commonTrap": "You must separately register and lock choices on the JoSAA portal—getting a JEE rank alone does not allot a seat."
+    },
+    "source": "Official Source (JoSAA Process)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["admissions", "josaa", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-adm-02",
+    "topic": "Freeze, Float, and Slide Options",
+    "concept": "josaa-freeze-float-slide",
+    "difficulty": "Hard",
+    "questionType": "match",
+    "subject": "Admissions & JoSAA",
+    "categoryId": "admissions",
+    "chapter": "Allotment Willingness",
+    "question": "In JoSAA seat allotment rounds, match each willingness option in List I with its exact behavior in List II.",
+    "matchPairs": {
+      "left": [
+        "Freeze",
+        "Float",
+        "Slide"
+      ],
+      "right": [
+        "Accept current seat and remain open only to higher-preference branches within the SAME institute",
+        "Accept current seat permanently and opt out of further upgrades",
+        "Accept current seat provisionally and stay open to ANY higher-preference choice across institutes"
+      ]
+    },
+    "options": [],
+    "answer": [1, 2, 0],
+    "explanation": {
+      "why": "Freeze locks your allotted seat; Float considers all higher preferences above it across any institute; Slide considers only higher-preference branches inside the same allotted institute.",
+      "concept": "Counseling Upgrade Rules",
+      "shortcut": "Freeze = Stop | Slide = Upgrade inside Same Campus | Float = Upgrade across Any Higher Choice.",
+      "commonTrap": "Selecting Freeze early prevents you from getting a higher-ranked preference in later rounds."
+    },
+    "source": "Official Source (JoSAA Business Rules)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["admissions", "josaa", "match"],
+    "verified": true
+  },
+  {
+    "id": "qf-adm-03",
+    "topic": "CSAB Special Rounds & Documents",
+    "concept": "counseling-documents",
+    "difficulty": "Medium",
+    "questionType": "multiple",
+    "subject": "Admissions & JoSAA",
+    "categoryId": "admissions",
+    "chapter": "Verification & Backup",
+    "question": "Which practices help students avoid last-minute counseling disqualification during engineering admissions? (Select all that apply)",
+    "options": [
+      "Keeping Class 10/12 marksheets, category/income certificates (if applicable), and photo ID verified early",
+      "Monitoring official counseling schedules and seat acceptance fee deadlines",
+      "Checking opening/closing rank trends safely while including realistic backup preferences",
+      "Waiting until after final round closing times to create a login account"
+    ],
+    "answer": [0, 1, 2],
+    "explanation": {
+      "why": "Timely document readiness, deadline tracking, and realistic preference lists protect seat offers from accidental cancellation.",
+      "concept": "Admission Readiness Checklist",
+      "shortcut": "Verify documents + respect deadlines + build dream/match/safe choices.",
+      "commonTrap": "Missing online document verification or fee payment deadlines forfeits an allotted seat automatically."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["admissions", "multiple", "checklist"],
+    "verified": true
+  }
+]

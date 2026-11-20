@@ -1,0 +1,95 @@
+[
+  {
+    "id": "qf-col-01",
+    "topic": "Comparing Engineering Institutes",
+    "concept": "college-selection-factors",
+    "difficulty": "Easy",
+    "questionType": "career_path",
+    "subject": "College Comparison",
+    "categoryId": "colleges",
+    "chapter": "Smart College Selection",
+    "question": "When comparing two engineering colleges beyond brand name alone, which combination of factors best indicates student learning quality?",
+    "options": [
+      "Updated curriculum & labs, active project/coding clubs, faculty mentorship, accreditation, and verified career outcomes",
+      "Only the color of the entrance gate and number of billboards near the highway",
+      "Whether the campus bans all technical clubs and hackathons",
+      "Choosing solely by whichever brochure uses the largest font size"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Accreditation (NBA/NAAC/NIRF data), modern lab infrastructure, peer/club ecosystem, and transparent graduate outcomes matter far more than marketing claims.",
+      "concept": "Holistic Institute Evaluation",
+      "shortcut": "Check Curriculum + Labs + Peer Ecosystem + Accreditation + Outcomes.",
+      "commonTrap": "Don't judge an engineering college solely by advertisements or unverified social media rumors."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["colleges", "comparison", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-col-02",
+    "topic": "Institute Acronym Match",
+    "concept": "institute-types-match",
+    "difficulty": "Medium",
+    "questionType": "match",
+    "subject": "College Comparison",
+    "categoryId": "colleges",
+    "chapter": "Indian Institute Ecosystem",
+    "question": "Match each institute type in List I with its defining characteristic in List II.",
+    "matchPairs": {
+      "left": [
+        "IITs",
+        "NITs",
+        "IIITs",
+        "GFTIs"
+      ],
+      "right": [
+        "Information Technology & computing-focused national institutes",
+        "State/central government-funded technical institutes participating in JoSAA",
+        "Premier research & engineering institutes admitting via JEE Advanced",
+        "31 National Institutes of Technology admitting via JEE Main with Home/Other State quotas"
+      ]
+    },
+    "options": [],
+    "answer": [2, 3, 0, 1],
+    "explanation": {
+      "why": "IITs admit via JEE Advanced; NITs admit via JEE Main with Home/Other State quotas; IIITs specialize heavily in IT/CSE/ECE; GFTIs are government-funded technical institutes under JoSAA.",
+      "concept": "National Engineering Institute Matrix",
+      "shortcut": "IIT = JEE Adv | NIT = JEE Main + State Quotas | IIIT = IT focus | GFTI = Govt Funded.",
+      "commonTrap": "Notice that IIITs focus specifically on Information Technology and related branches, unlike broad multi-discipline NITs/IITs."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["colleges", "iit", "nit", "iiit", "gfti", "match"],
+    "verified": true
+  },
+  {
+    "id": "qf-col-03",
+    "topic": "Branch vs College Trade-off",
+    "concept": "branch-vs-college",
+    "difficulty": "Hard",
+    "questionType": "scenario",
+    "subject": "College Comparison",
+    "categoryId": "colleges",
+    "chapter": "Counseling Decisions",
+    "question": "A student is passionate about designing microprocessors and embedded circuits. Should they blindly pick an unrelated branch solely for a slightly higher-ranked college tag without checking minor/elective flexibility?",
+    "options": [
+      "No — evaluate curriculum alignment, ECE/EEE elective flexibility, minor options, and lab access before trading away core interest",
+      "Yes — curriculum and lab access never affect your 4-year engineering projects",
+      "Yes — all engineering branches teach identical hardware labs in every semester",
+      "Only if the college forbids taking any elective outside the home department"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "College ecosystem can open doors, but studying four years in an unaligned branch without elective or minor flexibility hurts motivation and deep skill building.",
+      "concept": "Balanced Branch–Institute Fit",
+      "shortcut": "Check curriculum + minor/elective rules + campus labs before deciding.",
+      "commonTrap": "Assuming every campus lets you switch branches easily—branch change policies vary widely or are discontinued at some institutes."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["colleges", "career-fair", "scenario"],
+    "verified": true
+  }
+]

@@ -1,0 +1,112 @@
+[
+  {
+    "id": "qf-bas-01",
+    "topic": "What Engineering Does",
+    "concept": "engineering-definition",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Engineering Basics",
+    "categoryId": "engineering",
+    "chapter": "Foundations",
+    "question": "Which statement best defines what engineering primarily focuses on?",
+    "options": [
+      "Applying science and mathematics to design practical solutions to real-world problems",
+      "Memorizing scientific laws without building physical or digital systems",
+      "Focusing exclusively on historical experiments without designing products",
+      "Replacing mathematical analysis with pure trial-and-error guessing"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Engineering bridges scientific discovery and practical impact by using math, science, and design constraints to build reliable systems, products, and infrastructure.",
+      "concept": "Core Engineering Purpose",
+      "shortcut": "Think Science (understanding) + Engineering (designing & building solutions).",
+      "commonTrap": "Engineering is not just coding or machinery; it covers all structured problem-solving."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["engineering-basics", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-bas-02",
+    "topic": "Engineering Design Process",
+    "concept": "design-constraints",
+    "difficulty": "Medium",
+    "questionType": "scenario",
+    "subject": "Engineering Basics",
+    "categoryId": "engineering",
+    "chapter": "Design Thinking",
+    "question": "A student team must design a solar water purifier that costs under ₹1,500, works without grid electricity, and uses locally available materials. Which phase are these limits part of?",
+    "options": [
+      "Identifying design requirements and constraints",
+      "Publishing final maintenance manuals",
+      "Filing international patent trademarks",
+      "Recruiting factory sales teams"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Cost ceilings, power limits, and material availability define engineering constraints and requirements before prototyping begins.",
+      "concept": "Engineering Constraints & Trade-offs",
+      "shortcut": "Budget, safety, weight, and power limits are always constraints in Step 1.",
+      "commonTrap": "Don't confuse initial design constraints with post-launch commercialization."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["engineering-basics", "scenario", "design"],
+    "verified": true
+  },
+  {
+    "id": "qf-bas-03",
+    "topic": "Prototyping & Testing",
+    "concept": "iterative-design",
+    "difficulty": "Easy",
+    "questionType": "truefalse",
+    "subject": "Engineering Basics",
+    "categoryId": "engineering",
+    "chapter": "Design Thinking",
+    "question": "True or False: In engineering, building a quick prototype and testing where it fails is an expected step to improve the final design.",
+    "options": [
+      "True — iterative testing reveals flaws early before mass production",
+      "False — a prototype must always work 100% on the first try"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Iterative prototyping lets engineers test assumptions, measure failure points safely, and refine performance before scaling up.",
+      "concept": "Iterative Engineering Design",
+      "shortcut": "Prototype -> Test -> Learn -> Refine is the core engineering loop.",
+      "commonTrap": "Early test failures are data points, not proof of failure."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["engineering-basics", "prototyping"],
+    "verified": true
+  },
+  {
+    "id": "qf-bas-04",
+    "topic": "B.Tech vs Science Degree",
+    "concept": "btech-focus",
+    "difficulty": "Medium",
+    "questionType": "comparison",
+    "subject": "Engineering Basics",
+    "categoryId": "engineering",
+    "chapter": "After Class 12",
+    "question": "How does a 4-year B.Tech / B.E. degree generally differ from a pure science degree?",
+    "options": [
+      "It emphasizes applied design, laboratories, engineering systems, and building solutions",
+      "It completely excludes physics, chemistry, and mathematics",
+      "It only trains students for non-technical administrative jobs",
+      "It forbids specialization in any specific discipline"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "B.Tech and B.E. programs combine foundational math and science with applied laboratories, engineering design, and domain specialization.",
+      "concept": "Applied Engineering Education",
+      "shortcut": "B.Tech/B.E. = Science/Math foundations + Hands-on engineering systems.",
+      "commonTrap": "Engineering actually builds heavily on math and physics rather than avoiding them."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["engineering-basics", "after-12th"],
+    "verified": true
+  }
+]

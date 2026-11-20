@@ -1,0 +1,59 @@
+[
+  {
+    "id": "qf-iit-01",
+    "topic": "What IIT Stands For",
+    "concept": "iit-meaning",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "IITs",
+    "categoryId": "colleges",
+    "chapter": "National Institutes",
+    "question": "What does the acronym IIT stand for in Indian higher technical education?",
+    "options": [
+      "Indian Institute of Technology",
+      "International Institute of Telecom",
+      "Industrial Infrastructure Training",
+      "Institute of Integrated Testing"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "IIT stands for Indian Institute of Technology—premier Institutes of National Importance focused on engineering education and research.",
+      "concept": "IIT Identity",
+      "shortcut": "IIT = Indian Institute of Technology.",
+      "commonTrap": "Don't mix up IIT (Indian Institute of Technology) with IIIT (Indian Institute of Information Technology)."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["iit", "colleges", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-iit-02",
+    "topic": "IIT Admission Pathway",
+    "concept": "iit-entry-route",
+    "difficulty": "Medium",
+    "questionType": "single",
+    "subject": "IITs",
+    "categoryId": "colleges",
+    "chapter": "IIT Admissions",
+    "question": "How are undergraduate B.Tech seats at the IITs primarily allocated after clearing JEE Advanced?",
+    "options": [
+      "Through centralized JoSAA counseling based on JEE Advanced rank and choice order",
+      "Through TNEA state Class 12 board counseling alone",
+      "By appearing only in JEE Main Paper 1 without JEE Advanced",
+      "Via direct walk-in lotteries without national rank lists"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "After qualifying in JEE Advanced and meeting eligibility criteria, candidates rank their IIT branch preferences in centralized JoSAA counseling.",
+      "concept": "JEE Advanced + JoSAA Seat Allocation",
+      "shortcut": "JEE Main -> JEE Advanced -> JoSAA -> IIT.",
+      "commonTrap": "TNEA handles Tamil Nadu state engineering counseling—not IIT seats."
+    },
+    "source": "Official Source (JoSAA Guidelines)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["iit", "josaa", "admissions"],
+    "verified": true
+  }
+]

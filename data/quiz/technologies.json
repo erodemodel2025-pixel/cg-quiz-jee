@@ -1,0 +1,86 @@
+[
+  {
+    "id": "qf-tech-01",
+    "topic": "Engineering Applications of AI",
+    "concept": "ai-engineering-apps",
+    "difficulty": "Medium",
+    "questionType": "multiple",
+    "subject": "Engineering Technology",
+    "categoryId": "ai",
+    "chapter": "Applied AI",
+    "question": "Which of the following are real engineering applications of Artificial Intelligence? (Select all correct answers.)",
+    "options": [
+      "Predictive maintenance on factory turbines using sensor streams",
+      "Computer vision quality inspection on semiconductor wafers",
+      "Automated medical imaging triage assisting clinicians",
+      "Suspending conservation of energy in physical engines"
+    ],
+    "answer": [0, 1, 2],
+    "explanation": {
+      "why": "AI excels at pattern detection in sensor telemetry, high-speed optical defect detection, and diagnostic imaging—while still obeying physical laws.",
+      "concept": "Real-World Engineering AI",
+      "shortcut": "AI optimizes prediction, vision, and control; it cannot violate physics.",
+      "commonTrap": "AI assists engineers with data and optimization—it does not break physics laws."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["technology", "ai", "multiple"],
+    "verified": true
+  },
+  {
+    "id": "qf-tech-02",
+    "topic": "CAD & Simulation",
+    "concept": "cad-fea-tools",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Engineering Technology",
+    "categoryId": "mechanical",
+    "chapter": "Digital Design Tools",
+    "question": "What does CAD stand for in mechanical, civil, and architectural engineering?",
+    "options": [
+      "Computer-Aided Design",
+      "Central Algorithm Debugger",
+      "Circuit Analog Divider",
+      "Chemical Acid Dilution"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "CAD (Computer-Aided Design) software lets engineers model 2D blueprints and 3D assemblies precisely before fabrication.",
+      "concept": "Digital Engineering Toolchains",
+      "shortcut": "CAD = Computer-Aided Design.",
+      "commonTrap": "Don't confuse CAD (design modeling) with CAM (Computer-Aided Manufacturing)."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["technology", "cad", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-tech-03",
+    "topic": "Cloud & Edge Computing",
+    "concept": "edge-vs-cloud",
+    "difficulty": "Hard",
+    "questionType": "comparison",
+    "subject": "Engineering Technology",
+    "categoryId": "cs",
+    "chapter": "Distributed Systems",
+    "question": "Why does an autonomous drone often run obstacle-avoidance inference on an onboard edge processor rather than sending every frame to a remote cloud server?",
+    "options": [
+      "Edge processing minimizes network latency and continues working if wireless connectivity drops",
+      "Cloud data centers cannot perform matrix multiplication",
+      "Edge chips weigh more and consume infinite battery power intentionally",
+      "Wireless latency is zero milliseconds across global servers"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Safety-critical robotics needs millisecond latency and resilience against signal dropouts, making local edge compute essential.",
+      "concept": "Edge vs Cloud Latency Trade-off",
+      "shortcut": "Real-time safety/robotics -> Edge compute for ultra-low latency.",
+      "commonTrap": "Cloud is great for heavy training, but real-time flight control needs local inference."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["technology", "edge", "robotics"],
+    "verified": true
+  }
+]

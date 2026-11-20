@@ -1,0 +1,85 @@
+[
+  {
+    "id": "qf-gov-01",
+    "topic": "Engineering Services Examination (IES/ESE)",
+    "concept": "ese-ies-role",
+    "difficulty": "Medium",
+    "questionType": "single",
+    "subject": "Government & PSU Careers",
+    "categoryId": "government-careers",
+    "chapter": "Public Engineering Service",
+    "question": "Who conducts the Engineering Services Examination (ESE/IES) for Group-A central government engineering posts in Civil, Mechanical, Electrical, and Electronics & Telecom?",
+    "options": [
+      "Union Public Service Commission (UPSC)",
+      "National Council of Educational Research and Training (NCERT)",
+      "All India Football Federation",
+      "Individual private coaching institutes"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "UPSC conducts the Engineering Services Examination (ESE) to recruit Class-1 engineering officers across railways, public works, power, defence, and telecom departments.",
+      "concept": "UPSC Engineering Services (ESE)",
+      "shortcut": "ESE/IES is conducted by UPSC across Civil, Mech, EE, and E&T streams.",
+      "commonTrap": "ESE currently covers core four streams (CE, ME, EE, E&T)—CSE graduates often target GATE-based PSUs, ISRO, DRDO, or NIC instead."
+    },
+    "source": "Official Source (UPSC ESE Structure)",
+    "lastUpdated": "2026-01",
+    "year": 2026,
+    "tags": ["government-careers", "ese", "upsc"],
+    "verified": true
+  },
+  {
+    "id": "qf-gov-02",
+    "topic": "ISRO, DRDO & Research Labs",
+    "concept": "isro-drdo-entry",
+    "difficulty": "Easy",
+    "questionType": "single",
+    "subject": "Government & PSU Careers",
+    "categoryId": "government-careers",
+    "chapter": "National R&D Agencies",
+    "question": "Which Indian R&D organizations recruit engineers as Scientists/Engineers to build satellites, launch vehicles, radar, and defense systems?",
+    "options": [
+      "ISRO and DRDO",
+      "Municipal Parking Boards only",
+      "Private Cinema Chains",
+      "Primary School Sports Leagues"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "ISRO (space systems) and DRDO (defense R&D) recruit engineers in CSE, ECE, Mechanical, Electrical, Aerospace, and Chemical fields via ICRB/RAC exams or GATE-linked shortlists.",
+      "concept": "National Space & Defence Engineering",
+      "shortcut": "Space = ISRO | Defence R&D = DRDO.",
+      "commonTrap": "Both organizations look for strong fundamentals in core undergraduate engineering subjects, not just rote facts."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["government-careers", "isro", "drdo", "career-fair"],
+    "verified": true
+  },
+  {
+    "id": "qf-gov-03",
+    "topic": "PSU Engineering Recruitment",
+    "concept": "psu-gate-link",
+    "difficulty": "Hard",
+    "questionType": "truefalse",
+    "subject": "Government & PSU Careers",
+    "categoryId": "government-careers",
+    "chapter": "Public Sector Undertakings",
+    "question": "True or False: Major Public Sector Undertakings (PSUs) such as ONGC, NTPC, BHEL, PowerGrid, and IOCL commonly shortlist engineering graduates using valid GATE scores alongside interviews.",
+    "options": [
+      "True — valid GATE scores are a primary shortlisting route for many Maharatna/Navratna PSUs",
+      "False — PSUs legally prohibit using GATE scores for technical recruitment"
+    ],
+    "answer": 0,
+    "explanation": {
+      "why": "Many major Indian PSUs partner with GATE or conduct targeted technical exams/interviews to select graduate engineer trainees across core branches.",
+      "concept": "GATE-to-PSU Recruitment Route",
+      "shortcut": "High GATE rank + interview readiness = strong pathway into PSU engineering roles.",
+      "commonTrap": "Always verify each PSU's official notification year by year, as exact GATE paper eligibility varies."
+    },
+    "source": "Career Fair Knowledge Base",
+    "year": null,
+    "tags": ["government-careers", "psu", "gate"],
+    "verified": true
+  }
+]
