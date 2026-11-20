@@ -817,4 +817,227 @@ export function registerGameRoutes(app: express.Express, deps: GameRoutesDeps): 
       res.status(500).json({ error: 'Failed to load game leaderboard.' });
     }
   });
+
+  // 7. Engineering Simulator Mission Score Submission (Car Tuning + Smartphone Lab)
+  app.post('/api/simulator/submit', (req, res) => {
+    try {
+      const userId = String(req.body?.userId ?? '').trim();
+      const simulator = req.body?.simulator === 'phone' ? 'phone' : 'car';
+      const missionId = String(req.body?.missionId ?? '').trim();
+      const missionTitle = String(req.body?.missionTitle ?? 'Engineering Mission').trim();
+      const score = Math.max(0, Math.min(5000, Math.round(Number(req.body?.score ?? 0))));
+      const accuracy = Math.max(0, Math.min(100, Number(req.body?.accuracy ?? 0)));
+      const componentsExplored = Math.max(0, Math.round(Number(req.body?.componentsExplored ?? 0)));
+      const buildTitle = String(req.body?.buildTitle ?? 'Custom Prototype').trim().slice(0, 80);
+      const detailsSummary = String(req.body?.detailsSummary ?? '').trim().slice(0, 220);
+
+      if (!userId) {
+        res.status(401).json({ error: 'Authentication required: sign in to save simulator scores.' });
+        return;
+      }
+      if (!missionId) {
+        res.status(400).json({ error: 'missionId is required.' });
+        return;
+      }
+
+      const playerRow = db
+        .prepare('SELECT id, name, class_name, is_test FROM players WHERE id = ?')
+        .get(userId) as { id: string; name: string; class_name: string; is_test: number } | undefined;
+
+      if (!playerRow) {
+        res.status(401).json({ error: 'Registered player account required to rank on simulator leaderboard.' });
+        return;
+      }
+
+      // Prevent duplicate mission score inflation for same user + simulator + mission
+      const existing = db
+        .prepare(
+          'SELECT result_id, score FROM simulator_results WHERE user_id = ? AND simulator = ? AND mission_id = ?'
+        )
+        .get(userId, simulator, missionId) as { result_id: string; score: number } | undefined;
+
+      const nowIso = new Date().toISOString();
+      const xpEarned = existing
+        ? 0
+        : Math.max(40, Math.round(score * 0.15) + Math.round(componentsExplored * 2));
+
+      if (existing) {
+        db.prepare(
+          `UPDATE simulator_results
+           SET score = MAX(score, ?), accuracy = MAX(accuracy, ?),
+               components_explored = MAX(components_explored, ?),
+               build_title = ?, details_summary = ?, created_at = ?
+           WHERE result_id = ?`
+        ).run(score, accuracy, componentsExplored, buildTitle, detailsSummary, nowIso, existing.result_id);
+      } else {
+        const resultId = `sr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+        db.prepare(
+          `INSERT INTO simulator_results (
+            result_id, user_id, username, simulator, mission_id, mission_title,
+            score, accuracy, components_explored, build_title, details_summary,
+            xp_earned, is_test, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          resultId,
+          userId,
+          playerRow.name,
+          simulator,
+          missionId,
+          missionTitle,
+          score,
+          accuracy,
+          componentsExplored,
+          buildTitle,
+          detailsSummary,
+          xpEarned,
+          playerRow.is_test,
+          nowIso
+        );
+      }
+
+      const achs = ['first_run'];
+      if (componentsExplored >= 10) achs.push('scholar');
+      const progression =
+        xpEarned > 0
+          ? deps.updatePlayerProgression({
+              playerId: userId,
+              xpEarned,
+              maxStreak: 1,
+              newAchievements: achs,
+            })
+          : null;
+
+      const stats = db
+        .prepare(
+          `SELECT
+             COALESCE(SUM(score), 0) AS total_score,
+             COUNT(*) AS missions_completed,
+             COALESCE(MAX(components_explored), 0) AS components_explored,
+             COALESCE(ROUND(AVG(accuracy), 1), 0) AS avg_acc,
+             COALESCE(SUM(xp_earned), 0) AS sim_xp
+           FROM simulator_results
+           WHERE user_id = ?`
+        )
+        .get(userId) as {
+        total_score: number;
+        missions_completed: number;
+        components_explored: number;
+        avg_acc: number;
+        sim_xp: number;
+      };
+
+      res.json({
+        savedToLeaderboard: true,
+        alreadyCompletedMission: Boolean(existing),
+        xpEarned,
+        leveledUp: progression?.leveledUp ?? false,
+        unlockedAchievements: progression?.unlockedAchievements ?? [],
+        player: progression?.player ?? null,
+        progress: {
+          engineeringXp: stats.sim_xp,
+          missionsCompleted: stats.missions_completed,
+          componentsExplored: Math.max(stats.components_explored, componentsExplored),
+          engineeringAccuracy: stats.avg_acc,
+          totalScore: stats.total_score,
+        },
+      });
+    } catch (err) {
+      logServerError('/api/simulator/submit', String(err));
+      res.status(500).json({ error: 'Failed to save simulator mission score.' });
+    }
+  });
+
+  // 8. Engineering Simulator Leaderboard (Car Tuning + Smartphone Engineering Lab)
+  app.get('/api/simulator/leaderboard', (req, res) => {
+    try {
+      const simulator = String(req.query.simulator ?? 'all').toLowerCase();
+      const search = String(req.query.search ?? '').trim().toLowerCase();
+      const userId = String(req.query.userId ?? '').trim();
+      const includeTest =
+        req.query.includeTest === '1' && req.headers['x-cgquiz-dev'] === 'arcade-matrix-dev';
+
+      const whereClauses: string[] = [];
+      const sqlParams: Array<string | number> = [];
+
+      if (!includeTest) {
+        whereClauses.push('sr.is_test = 0 AND p.is_test = 0');
+      }
+      if (simulator === 'car' || simulator === 'phone') {
+        whereClauses.push('sr.simulator = ?');
+        sqlParams.push(simulator);
+      }
+
+      const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+      const rows = db
+        .prepare(
+          `SELECT
+             sr.user_id,
+             p.name AS username,
+             p.class_name,
+             p.title,
+             SUM(sr.score) AS total_points,
+             MAX(sr.score) AS best_score,
+             COUNT(sr.result_id) AS missions_completed,
+             ROUND(AVG(sr.accuracy), 1) AS avg_accuracy,
+             MAX(sr.components_explored) AS components_explored,
+             MAX(sr.simulator) AS simulator,
+             MAX(sr.created_at) AS latest_at
+           FROM simulator_results sr
+           JOIN players p ON p.id = sr.user_id
+           ${whereSql}
+           GROUP BY sr.user_id
+           ORDER BY total_points DESC, avg_accuracy DESC, missions_completed DESC, latest_at ASC`
+        )
+        .all(...sqlParams) as Array<{
+        user_id: string;
+        username: string;
+        class_name: string;
+        title: string;
+        total_points: number;
+        best_score: number;
+        missions_completed: number;
+        avg_accuracy: number;
+        components_explored: number;
+        simulator: string;
+        latest_at: string;
+      }>;
+
+      const rankedAll: GameLeaderboardEntry[] = rows.map((r, idx) => ({
+        rank: idx + 1,
+        userId: r.user_id,
+        username: r.username,
+        className: r.class_name,
+        title: r.title,
+        score: r.total_points,
+        bestScore: r.best_score,
+        totalPoints: r.total_points,
+        gamesPlayed: r.missions_completed,
+        accuracy: r.avg_accuracy,
+        completionTime: r.components_explored,
+        difficulty: r.simulator === 'phone' ? 'phone-lab' : 'car-sim',
+        category: 'engineering-simulator',
+        createdAt: r.latest_at,
+      }));
+
+      const currentUserEntry = userId
+        ? rankedAll.find((e) => e.userId === userId) || null
+        : null;
+      const filtered = search
+        ? rankedAll.filter((e) => e.username.toLowerCase().includes(search))
+        : rankedAll;
+
+      res.json({
+        view: 'overall',
+        rankingMethodDescription:
+          'Ranked by verified cumulative engineering mission points across the Car Tuning Simulator and Smartphone Engineering Lab (one verified best submission per mission).',
+        totalPlayers: rankedAll.length,
+        top3: rankedAll.slice(0, 3),
+        entries: filtered.slice(0, 100),
+        currentUserEntry,
+      });
+    } catch (err) {
+      logServerError('/api/simulator/leaderboard', String(err));
+      res.status(500).json({ error: 'Failed to load simulator leaderboard.' });
+    }
+  });
 }

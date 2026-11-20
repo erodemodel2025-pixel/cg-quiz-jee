@@ -45,8 +45,9 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
   const { player, examUserId, setMusicMode, reportError } = useArcade();
 
   const [hallView, setHallView] = useState<'rankings' | 'vault'>('rankings');
-  const [boardTab, setBoardTab] = useState<'highest' | 'overall' | 'arcade'>('highest');
+  const [boardTab, setBoardTab] = useState<'highest' | 'overall' | 'simulators' | 'arcade'>('highest');
   const [diffFilter, setDiffFilter] = useState<'all' | GameDifficultyId>('all');
+  const [simFilter, setSimFilter] = useState<'all' | 'car' | 'phone'>('all');
   const [className, setClassName] = useState<string>('all');
   const [search, setSearch] = useState('');
 
@@ -76,6 +77,18 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
         if (res.ok && res.data && Array.isArray(res.data.entries)) {
           setArcadeRows(res.data.entries);
         }
+      } else if (boardTab === 'simulators') {
+        const qs = new URLSearchParams({
+          simulator: simFilter,
+          search,
+          userId: player?.id || '',
+        });
+        const res = await safeFetchJson<GameLeaderboardApiResponse>(
+          `/api/simulator/leaderboard?${qs.toString()}`
+        );
+        if (res.ok && res.data) {
+          setGameBoard(res.data);
+        }
       } else {
         const qs = new URLSearchParams({
           view: boardTab,
@@ -95,7 +108,7 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
     } finally {
       setLoading(false);
     }
-  }, [boardTab, className, diffFilter, examUserId, player?.id, reportError, search]);
+  }, [boardTab, className, diffFilter, examUserId, player?.id, reportError, search, simFilter]);
 
   useEffect(() => {
     void loadLeaderboard();
@@ -237,6 +250,7 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
             [
               { id: 'highest', label: 'Highest Single Score' },
               { id: 'overall', label: 'Overall Performance' },
+              { id: 'simulators', label: 'Engineering Simulators' },
               { id: 'arcade', label: 'Mini-Games' },
             ] as const
           ).map((t) => (
@@ -268,7 +282,9 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
                 ? 'Top 3 — Highest Single Score'
                 : boardTab === 'overall'
                   ? 'Top 3 — Overall Performance (Total Points)'
-                  : 'Top 3 — Arcade Mini-Games'}
+                  : boardTab === 'simulators'
+                    ? 'Top 3 — 3D Engineering Simulators'
+                    : 'Top 3 — Arcade Mini-Games'}
             </h2>
             {boardTab !== 'arcade' && gameBoard?.rankingMethodDescription && (
               <p className="text-xs text-[var(--studio-text-secondary)] mt-0.5">
@@ -381,6 +397,17 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
                     {c}
                   </option>
                 ))}
+              </select>
+            ) : boardTab === 'simulators' ? (
+              <select
+                value={simFilter}
+                onChange={(e) => setSimFilter(e.target.value as 'all' | 'car' | 'phone')}
+                aria-label="Filter by simulator"
+                className="studio-input px-3 py-2 text-sm"
+              >
+                <option value="all">All Engineering Simulators</option>
+                <option value="car">Car Tuning Simulator</option>
+                <option value="phone">Smartphone Engineering Lab</option>
               </select>
             ) : (
               <select

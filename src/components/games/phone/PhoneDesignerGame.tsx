@@ -1,25 +1,32 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Activity,
+  AlertTriangle,
   ArrowLeft,
+  BookOpen,
   Camera,
   Check,
-  Copy,
+  CheckCircle2,
+  Cpu,
   Eye,
+  EyeOff,
   FolderOpen,
-  ImagePlus,
+  HelpCircle,
   Layers,
-  Palette,
-  Plus,
+  Lock,
   RotateCcw,
-  RotateCw,
   Save,
   Shuffle,
-  Smartphone,
-  Sparkles,
+  Sliders,
   Target,
   Trash2,
+  Trophy,
+  Wrench,
   X,
 } from 'lucide-react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { SavedCreation } from '../../../../shared/types.ts';
 import { arcadeAudio } from '../../../audio/arcadeAudio.ts';
 import { useArcade } from '../../../context/ArcadeContext.tsx';
@@ -29,23 +36,36 @@ import {
   removeCreation,
   saveCreation,
 } from '../../../utils/creationsStore.ts';
+import type { EngineeringComponentSpec, SimulatorProgressSummary } from '../shared/engineeringTypes.ts';
+import { LearningInspectorModal } from '../shared/LearningInspectorModal.tsx';
 import {
+  loadLocalSimulatorProgress,
+  recordExploredComponentLocal,
+  submitSimulatorMissionScore,
+} from '../shared/simulatorLeaderboardClient.ts';
+import { buildPhoneGroup, type PhoneRigHandles } from './phoneBuilder3d.ts';
+import {
+  ASSEMBLY_SEQUENCE,
   createInitialPhoneState,
   createRandomPhoneState,
-  evaluatePhoneDesign,
-  nextPhoneUid,
+  evaluatePhoneEngineering,
+  normalizePhoneState,
+  PHONE_BAY_OPTIONS,
   PHONE_CHALLENGES,
   PHONE_COLORS,
-  PHONE_COMPONENT_GROUPS,
-  PHONE_COMPONENTS,
   PHONE_WALLPAPERS,
-  type PhoneComponentDef,
-  type PhoneComponentGroup,
+  type PhoneBayConfig,
+  type PhoneBayId,
   type PhoneDesignState,
-  type PhoneFace,
+  type PhoneInspectionViewMode,
   type PhoneSizePreset,
-  type PlacedPhoneComponent,
 } from './phoneCatalog.ts';
+import {
+  PHONE_COMPONENT_MAP,
+  PHONE_ENGINEERING_COMPONENTS,
+  PHONE_SUBSYSTEMS,
+  type PhoneSubsystemId,
+} from './phoneEngineeringData.ts';
 
 interface PhoneDesignerGameProps {
   onExit: () => void;
@@ -53,7 +73,36 @@ interface PhoneDesignerGameProps {
   initialCreationId?: string | null;
 }
 
-const DEF_MAP = new Map(PHONE_COMPONENTS.map((d) => [d.id, d]));
+type WorkstationTab = 'assemble' | 'telemetry' | 'challenges' | 'components' | 'saved';
+type PhoneCameraPreset = 'hero' | 'front' | 'rear' | 'side' | 'top' | 'internals';
+
+const CAMERA_PRESETS: Record<
+  PhoneCameraPreset,
+  { pos: [number, number, number]; target: [number, number, number] }
+> = {
+  hero: { pos: [1.45, 0.55, -1.85], target: [0, 0, -0.1] },
+  front: { pos: [0.0, 0.05, 2.15], target: [0, 0, 0] },
+  rear: { pos: [0.0, 0.05, -2.2], target: [0, 0, -0.15] },
+  side: { pos: [2.15, 0.08, 0.05], target: [0, 0, -0.12] },
+  top: { pos: [0.01, 2.25, 0.25], target: [0, 0, -0.1] },
+  internals: { pos: [0.85, 0.35, -1.45], target: [0, 0.04, -0.12] },
+};
+
+function detectSoftwareGl(): boolean {
+  try {
+    const probe = document.createElement('canvas');
+    const gl = probe.getContext('webgl2') || probe.getContext('webgl');
+    if (!gl) return true;
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    if (ext) {
+      const r = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '');
+      if (/SwiftShader|LLVMpipe|Software|ANGLE \(Google/i.test(r)) return true;
+    }
+    return false;
+  } catch {
+    return true;
+  }
+}
 
 export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
   onExit,
@@ -61,44 +110,52 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
   initialCreationId,
 }) => {
   const { player, updateLocalPlayer } = useArcade();
+  const isAuthenticated = Boolean(player?.id);
   const userId = getGuestOrUserId(player?.id);
 
-  const [state, setState] = useState<PhoneDesignState>(() => {
-    const base = createInitialPhoneState();
-    return initialDesign ? { ...base, ...initialDesign } : base;
-  });
+  const [state, setState] = useState<PhoneDesignState>(() => normalizePhoneState(initialDesign));
   const [editingId, setEditingId] = useState<string | undefined>(initialCreationId || undefined);
-  const [activeFace, setActiveFace] = useState<PhoneFace>('rear');
-  const [activeGroup, setActiveGroup] = useState<PhoneComponentGroup>('camera');
-  const [selectedUid, setSelectedUid] = useState<string | null>(null);
-  const [rightTab, setRightTab] = useState<'studio' | 'challenges' | 'saved'>('studio');
-  const [showcaseOpen, setShowcaseOpen] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<WorkstationTab>('assemble');
+  const [selectedBay, setSelectedBay] = useState<PhoneBayId>('soc');
+  const [guidedAssembly, setGuidedAssembly] = useState(false);
+  const [subsystemFilter, setSubsystemFilter] = useState<PhoneSubsystemId>('processing');
+  const [learningMode, setLearningMode] = useState(true);
+  const [hideHud, setHideHud] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  const [inspectedComp, setInspectedComp] = useState<EngineeringComponentSpec | null>(null);
+  const [exploredIds, setExploredIds] = useState<Set<string>>(() => new Set());
+  const [simProgress, setSimProgress] = useState<SimulatorProgressSummary>(() =>
+    loadLocalSimulatorProgress(player?.id)
+  );
+  const [submittedMissionIds, setSubmittedMissionIds] = useState<Set<string>>(() => new Set());
+  const [submittingMission, setSubmittingMission] = useState(false);
+
+  const [webglFailed, setWebglFailed] = useState(false);
   const [savedPhones, setSavedPhones] = useState<SavedCreation[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const [compatibilityAlert, setCompatibilityAlert] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [snapGuides, setSnapGuides] = useState<{ x: boolean; y: boolean }>({ x: false, y: false });
 
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const dragInfoRef = useRef<{
-    uid: string;
-    startClientX: number;
-    startClientY: number;
-    origX: number;
-    origY: number;
-  } | null>(null);
-
-  const metrics = useMemo(() => evaluatePhoneDesign(state), [state]);
-  const selectedComp = useMemo(
-    () => state.components.find((c) => c.uid === selectedUid) || null,
-    [state.components, selectedUid]
+  const telemetry = useMemo(() => evaluatePhoneEngineering(state), [state]);
+  const activeChallenge = useMemo(
+    () =>
+      state.activeChallengeId
+        ? PHONE_CHALLENGES.find((c) => c.id === state.activeChallengeId) || null
+        : null,
+    [state.activeChallengeId]
   );
-  const selectedDef = selectedComp ? DEF_MAP.get(selectedComp.defId) || null : null;
+  const challengeResult = useMemo(
+    () => (activeChallenge ? activeChallenge.check(state, telemetry) : null),
+    [activeChallenge, state, telemetry]
+  );
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     window.setTimeout(() => {
       setToast((curr) => (curr === msg ? null : curr));
-    }, 3400);
+    }, 3600);
   }, []);
 
   const refreshSaved = useCallback(async () => {
@@ -110,207 +167,515 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
     void refreshSaved();
   }, [refreshSaved]);
 
-  const addComponentToCanvas = useCallback(
-    (def: PhoneComponentDef, dropX?: number, dropY?: number, forceFace?: PhoneFace) => {
+  useEffect(() => {
+    setSimProgress(loadLocalSimulatorProgress(player?.id));
+  }, [player?.id]);
+
+  const openComponentLearning = useCallback(
+    (compId: string) => {
+      const comp = PHONE_COMPONENT_MAP.get(compId);
+      if (!comp) return;
       arcadeAudio.playSfx('click');
-      const targetFace = forceFace || (def.allowBothFaces ? activeFace : def.defaultFace);
-      if (targetFace !== activeFace) setActiveFace(targetFace);
-      const newComp: PlacedPhoneComponent = {
-        uid: nextPhoneUid(),
-        defId: def.id,
-        face: targetFace,
-        x: dropX ?? def.defaultX,
-        y: dropY ?? def.defaultY,
-        scale: 1,
-        rotation: 0,
-        color: def.defaultColor,
-      };
-      setState((prev) => ({
-        ...prev,
-        components: [...prev.components, newComp],
-      }));
-      setSelectedUid(newComp.uid);
+      setInspectedComp(comp);
+      setExploredIds((prev) => {
+        if (prev.has(compId)) return prev;
+        const next = new Set(prev);
+        next.add(compId);
+        const prog = recordExploredComponentLocal(player?.id, next.size);
+        setSimProgress(prog);
+        return next;
+      });
     },
-    [activeFace]
+    [player?.id]
   );
 
-  // Pointer drag inside Phone Canvas
+  // Three.js Refs
+  const mountRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const phoneRigRef = useRef<PhoneRigHandles | null>(null);
+  const requestRenderRef = useRef<() => void>(() => {});
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const openLearningRef = useRef(openComponentLearning);
+  openLearningRef.current = openComponentLearning;
+
+  const camTargetGoalRef = useRef<{
+    active: boolean;
+    pos: THREE.Vector3;
+    target: THREE.Vector3;
+  }>({
+    active: false,
+    pos: new THREE.Vector3(...CAMERA_PRESETS.hero.pos),
+    target: new THREE.Vector3(...CAMERA_PRESETS.hero.target),
+  });
+
+  const explodeProgressRef = useRef(0);
+  const rearRemovedProgressRef = useRef(1);
+  const snapPulseRef = useRef<{ bayId: PhoneBayId | null; amp: number }>({ bayId: null, amp: 0 });
+
+  const setCameraView = useCallback((preset: PhoneCameraPreset) => {
+    arcadeAudio.playSfx('click');
+    const p = CAMERA_PRESETS[preset];
+    camTargetGoalRef.current.pos.set(...p.pos);
+    camTargetGoalRef.current.target.set(...p.target);
+    camTargetGoalRef.current.active = true;
+    requestRenderRef.current();
+  }, []);
+
+  // Initialize Three.js WebGL CAD Viewport once
   useEffect(() => {
-    const onPointerMove = (e: PointerEvent) => {
-      const drag = dragInfoRef.current;
-      const box = canvasRef.current?.getBoundingClientRect();
-      if (!drag || !box || box.width === 0 || box.height === 0) return;
+    const container = mountRef.current;
+    if (!container) return;
 
-      const dxPct = ((e.clientX - drag.startClientX) / box.width) * 100;
-      const dyPct = ((e.clientY - drag.startClientY) / box.height) * 100;
-      let nextX = Math.max(2, Math.min(98, drag.origX + dxPct));
-      let nextY = Math.max(2, Math.min(98, drag.origY + dyPct));
+    let renderer: THREE.WebGLRenderer;
+    let isSoftwareGl = false;
+    try {
+      isSoftwareGl = detectSoftwareGl();
+      renderer = new THREE.WebGLRenderer({
+        antialias: !isSoftwareGl,
+        powerPreference: 'high-performance',
+        preserveDrawingBuffer: true,
+      });
+    } catch {
+      setWebglFailed(true);
+      return;
+    }
 
-      // Gentle magnetic center & grid snapping
-      const snapX = Math.abs(nextX - 50) < 2.6;
-      const snapY = Math.abs(nextY - 50) < 2.6;
-      if (snapX) nextX = 50;
-      if (snapY) nextY = 50;
-      setSnapGuides({ x: snapX, y: snapY });
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = !isSoftwareGl;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-      setState((prev) => ({
-        ...prev,
-        components: prev.components.map((c) =>
-          c.uid === drag.uid ? { ...c, x: Number(nextX.toFixed(1)), y: Number(nextY.toFixed(1)) } : c
-        ),
-      }));
+    const w = Math.max(320, container.clientWidth);
+    const h = Math.max(320, container.clientHeight);
+    renderer.setSize(w, h);
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#050A18');
+    scene.fog = new THREE.Fog('#050A18', 5, 16);
+    sceneRef.current = scene;
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+
+    const camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 40);
+    camera.position.set(...CAMERA_PRESETS.hero.pos);
+    cameraRef.current = camera;
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(...CAMERA_PRESETS.hero.target);
+    controls.enableDamping = !isSoftwareGl;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 0.95;
+    controls.maxDistance = 4.6;
+    controls.enablePan = true;
+    controlsRef.current = controls;
+
+    // 3-Point Studio CAD Lighting
+    const hemi = new THREE.HemisphereLight('#E0F2FE', '#0F172A', 1.1);
+    scene.add(hemi);
+    const keyLight = new THREE.DirectionalLight('#FFFFFF', 2.0);
+    keyLight.position.set(2.5, 4.2, 3.0);
+    keyLight.castShadow = !isSoftwareGl;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+    const rimLight = new THREE.DirectionalLight('#38BDF8', 1.25);
+    rimLight.position.set(-2.5, 1.5, -3.2);
+    scene.add(rimLight);
+
+    // Subtle workbench grid floor
+    const grid = new THREE.GridHelper(6, 24, '#1E3A8A', '#0F172A');
+    grid.position.y = -1.05;
+    scene.add(grid);
+
+    // Build initial phone rig
+    const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    const rig = buildPhoneGroup(stateRef.current, { isSoftwareGl, maxAnisotropy: maxAniso });
+    phoneRigRef.current = rig;
+    scene.add(rig.root);
+
+    if (!isSoftwareGl) {
+      renderer.compile(scene, camera);
+    }
+
+    // Coalesced On-Demand Render Loop with Software WebGL pacing
+    let frameId = 0;
+    let renderBusy = false;
+    let renderDirty = false;
+    let lastTs = performance.now();
+    let disposed = false;
+
+    const afterDraw = (cb: () => void) => {
+      try {
+        const gl = renderer.getContext() as WebGL2RenderingContext;
+        const sync = gl.fenceSync ? gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0) : null;
+        if (sync && gl.flush) {
+          gl.flush();
+          const poll = () => {
+            if (disposed) return;
+            const st = gl.getSyncParameter(sync, gl.SYNC_STATUS);
+            if (st === gl.UNSIGNALED) {
+              frameId = window.setTimeout(poll, 5);
+            } else {
+              gl.deleteSync(sync);
+              frameId = window.setTimeout(cb, 80);
+            }
+          };
+          frameId = window.setTimeout(poll, 5);
+          return;
+        }
+      } catch {
+        // fallback below
+      }
+      frameId = window.setTimeout(cb, 80);
     };
 
-    const onPointerUp = () => {
-      if (dragInfoRef.current) {
-        dragInfoRef.current = null;
-        setSnapGuides({ x: false, y: false });
+    const requestRender = () => {
+      if (disposed) return;
+      if (renderBusy) {
+        renderDirty = true;
+        return;
+      }
+      renderBusy = true;
+      frameId = requestAnimationFrame((now) => {
+        if (disposed) return;
+        const dt = Math.min(0.05, Math.max(0.001, (now - lastTs) / 1000));
+        lastTs = now;
+        renderDirty = false;
+
+        let keepAnimating = false;
+
+        // Smooth camera glide
+        const goal = camTargetGoalRef.current;
+        if (goal.active) {
+          const alpha = 1 - Math.exp(-9 * dt);
+          camera.position.lerp(goal.pos, alpha);
+          controls.target.lerp(goal.target, alpha);
+          if (
+            camera.position.distanceTo(goal.pos) < 0.01 &&
+            controls.target.distanceTo(goal.target) < 0.01
+          ) {
+            camera.position.copy(goal.pos);
+            controls.target.copy(goal.target);
+            goal.active = false;
+          } else {
+            keepAnimating = true;
+          }
+        }
+
+        // Smooth Exploded & Rear-Panel Removal kinematics
+        const st = stateRef.current;
+        const targetExplode = st.viewMode === 'exploded' ? 1 : 0;
+        const targetRearRemoved = st.viewMode === 'back-removed' ? 1 : 0;
+
+        explodeProgressRef.current = THREE.MathUtils.damp(
+          explodeProgressRef.current,
+          targetExplode,
+          8,
+          dt
+        );
+        rearRemovedProgressRef.current = THREE.MathUtils.damp(
+          rearRemovedProgressRef.current,
+          targetRearRemoved,
+          8,
+          dt
+        );
+
+        if (
+          Math.abs(explodeProgressRef.current - targetExplode) > 0.004 ||
+          Math.abs(rearRemovedProgressRef.current - targetRearRemoved) > 0.004
+        ) {
+          keepAnimating = true;
+        }
+
+        // Animated Snap-in pulse feedback
+        if (snapPulseRef.current.amp > 0.004) {
+          snapPulseRef.current.amp = THREE.MathUtils.damp(snapPulseRef.current.amp, 0, 7, dt);
+          keepAnimating = true;
+        } else {
+          snapPulseRef.current.amp = 0;
+          snapPulseRef.current.bayId = null;
+        }
+
+        const curRig = phoneRigRef.current;
+        if (curRig) {
+          const ex = explodeProgressRef.current;
+          const rem = rearRemovedProgressRef.current;
+          for (const item of curRig.explodables) {
+            if (item.isRearPanel) {
+              const explZ = THREE.MathUtils.lerp(item.baseZ, item.explodeZ, ex);
+              item.obj.position.z = explZ - rem * 0.62;
+              item.obj.position.x = rem * 0.56;
+              item.obj.rotation.y = rem * 0.28;
+            } else {
+              item.obj.position.z = THREE.MathUtils.lerp(item.baseZ, item.explodeZ, ex);
+            }
+          }
+          if (snapPulseRef.current.bayId && curRig.bayGroups[snapPulseRef.current.bayId]) {
+            const grp = curRig.bayGroups[snapPulseRef.current.bayId]!;
+            grp.position.z -= snapPulseRef.current.amp * 0.14;
+          }
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+
+        const done = () => {
+          renderBusy = false;
+          if ((renderDirty || keepAnimating) && !disposed) {
+            requestRender();
+          }
+        };
+        if (isSoftwareGl) afterDraw(done);
+        else done();
+      });
+    };
+
+    requestRenderRef.current = requestRender;
+
+    const onControlsStart = () => {
+      camTargetGoalRef.current.active = false;
+      requestRender();
+    };
+    const onControlsChange = () => {
+      requestRender();
+    };
+    controls.addEventListener('start', onControlsStart);
+    controls.addEventListener('change', onControlsChange);
+
+    // Raycast click to inspect internal/external phone hardware components
+    const raycaster = new THREE.Raycaster();
+    const pointerNdc = new THREE.Vector2();
+    let downX = 0;
+    let downY = 0;
+
+    const onPointerDown = (e: PointerEvent) => {
+      downX = e.clientX;
+      downY = e.clientY;
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      const dist = Math.hypot(e.clientX - downX, e.clientY - downY);
+      if (dist > 6 || !phoneRigRef.current) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointerNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hits = raycaster.intersectObjects(phoneRigRef.current.clickableObjects, true);
+      if (hits.length > 0) {
+        const hitObj = hits[0].object;
+        const compId = hitObj.userData?.componentId as string | undefined;
+        const bayId = hitObj.userData?.bayId as PhoneBayId | undefined;
+        if (bayId) setSelectedBay(bayId);
+        if (compId) openLearningRef.current(compId);
       }
     };
 
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
+
+    const onResize = () => {
+      if (!container || disposed) return;
+      const nw = Math.max(320, container.clientWidth);
+      const nh = Math.max(320, container.clientHeight);
+      camera.aspect = nw / nh;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nw, nh);
+      requestRender();
+    };
+    const ro = new ResizeObserver(onResize);
+    ro.observe(container);
+
+    const onContextLost = (ev: Event) => {
+      ev.preventDefault();
+      setWebglFailed(true);
+    };
+    renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+
+    requestRender();
+
     return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
+      disposed = true;
+      cancelAnimationFrame(frameId);
+      clearTimeout(frameId);
+      ro.disconnect();
+      controls.removeEventListener('start', onControlsStart);
+      controls.removeEventListener('change', onControlsChange);
+      controls.dispose();
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointerup', onPointerUp);
+      renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
+
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          for (const m of mats) {
+            if (!m) continue;
+            if ('map' in m && m.map instanceof THREE.Texture) m.map.dispose();
+            m.dispose();
+          }
+        }
+      });
+      renderer.dispose();
     };
   }, []);
 
-  const handlePaletteDragEnd = (def: PhoneComponentDef, e: React.DragEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    if (
-      e.clientX >= rect.left &&
-      e.clientX <= rect.right &&
-      e.clientY >= rect.top &&
-      e.clientY <= rect.bottom
-    ) {
-      const x = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(4, Math.min(96, ((e.clientY - rect.top) / rect.height) * 100));
-      addComponentToCanvas(def, Number(x.toFixed(1)), Number(y.toFixed(1)), activeFace);
-    }
-  };
+  // Rebuild 3D Phone Geometry whenever hardware bays/dimensions/color change
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    if (!scene || !renderer) return;
 
-  const handleWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setState((prev) => ({ ...prev, customWallpaperDataUrl: reader.result as string }));
-        showToast('Custom wallpaper applied!');
+    if (phoneRigRef.current) {
+      const old = phoneRigRef.current.root;
+      scene.remove(old);
+      old.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          for (const m of mats) {
+            if (!m) continue;
+            if ('map' in m && m.map instanceof THREE.Texture) m.map.dispose();
+            m.dispose();
+          }
+        }
+      });
+    }
+
+    const isSw = detectSoftwareGl();
+    const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    const rig = buildPhoneGroup(state, { isSoftwareGl: isSw, maxAnisotropy: maxAniso });
+    phoneRigRef.current = rig;
+    scene.add(rig.root);
+    requestRenderRef.current();
+  }, [
+    state.bays,
+    state.sizePreset,
+    state.thicknessMm,
+    state.bodyColor,
+    state.wallpaperId,
+    state.deviceName,
+    state.installedBays,
+  ]);
+
+  // Trigger smooth Z transition when viewMode toggles
+  useEffect(() => {
+    requestRenderRef.current();
+  }, [state.viewMode]);
+
+  // CAD Keyboard Shortcuts (R, F, T, E, I, H, ESC)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+        return;
+      }
+      const k = e.key.toUpperCase();
+      if (k === 'R') {
+        setCameraView('hero');
+      } else if (k === 'F') {
+        setCameraView('front');
+      } else if (k === 'T') {
+        setCameraView('top');
+      } else if (k === 'E') {
+        setState((prev) => ({
+          ...prev,
+          viewMode: prev.viewMode === 'exploded' ? 'back-removed' : 'exploded',
+        }));
+      } else if (k === 'I') {
+        setLearningMode((v) => !v);
+      } else if (k === 'H') {
+        setHideHud((v) => !v);
+      } else if (k === 'ESCAPE') {
+        setInspectedComp(null);
+        setShortcutsOpen(false);
+        setHideHud(false);
       }
     };
-    reader.readAsDataURL(file);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [setCameraView]);
+
+  // Install / Replace Bay Component with Animated Snap + Compatibility Notice
+  const installBayOption = <K extends PhoneBayId>(bayId: K, value: PhoneBayConfig[K], learnId?: string) => {
+    arcadeAudio.playSfx('click');
+    snapPulseRef.current = { bayId, amp: 1.0 };
+    const nextState: PhoneDesignState = {
+      ...state,
+      bays: { ...state.bays, [bayId]: value },
+      installedBays: state.installedBays.includes(bayId)
+        ? state.installedBays
+        : [...state.installedBays, bayId],
+    };
+    const nextTelemetry = evaluatePhoneEngineering(nextState);
+    setState(nextState);
+
+    const bayIssue = nextTelemetry.issues.find((i) => i.bay === bayId && i.severity === 'error');
+    if (bayIssue) {
+      setCompatibilityAlert(`${bayIssue.title} — ${bayIssue.detail}`);
+    } else if (nextTelemetry.errorCount > 0) {
+      setCompatibilityAlert(`${nextTelemetry.issues[0].title} — ${nextTelemetry.issues[0].detail}`);
+    } else {
+      setCompatibilityAlert(null);
+    }
+
+    if (learningMode && learnId) {
+      openComponentLearning(learnId);
+    }
+    requestRenderRef.current();
   };
 
-  const generateCompositePngDataUrl = useCallback((): string | null => {
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 760;
-      canvas.height = 540;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
-
-      ctx.fillStyle = '#060A17';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Header text
-      ctx.fillStyle = '#22D3EE';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText(state.deviceName || 'Next Smartphone', 36, 44);
-      ctx.fillStyle = '#94A3B8';
-      ctx.font = '14px monospace';
-      ctx.fillText(
-        `CG QUIZ STUDIO · Est. $${metrics.estimatedPrice} (Simulated) · Rating ${metrics.designRating}/100`,
-        36,
-        68
-      );
-
-      const drawPhone = (face: PhoneFace, px: number, py: number, pw: number, ph: number) => {
-        ctx.save();
-        ctx.fillStyle = face === 'front' ? '#090D16' : state.bodyColor;
-        ctx.strokeStyle = '#94A3B8';
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.roundRect(px, py, pw, ph, 34);
-        ctx.fill();
-        ctx.stroke();
-
-        if (face === 'front') {
-          const grad = ctx.createLinearGradient(px, py, px + pw, py + ph);
-          grad.addColorStop(0, '#0F172A');
-          grad.addColorStop(0.5, '#2563EB');
-          grad.addColorStop(1, '#06B6D4');
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.roundRect(px + 10, py + 10, pw - 20, ph - 20, 26);
-          ctx.fill();
-        }
-
-        const comps = state.components.filter((c) => c.face === face);
-        for (const comp of comps) {
-          const def = DEF_MAP.get(comp.defId);
-          if (!def) continue;
-          const cx = px + (comp.x / 100) * pw;
-          const cy = py + (comp.y / 100) * ph;
-          const cw = (def.defaultW / 100) * pw * comp.scale;
-          const ch = (def.defaultH / 100) * ph * comp.scale;
-          ctx.save();
-          ctx.translate(cx, cy);
-          ctx.rotate((comp.rotation * Math.PI) / 180);
-          ctx.fillStyle = comp.color;
-          ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.roundRect(-cw / 2, -ch / 2, cw, ch, 10);
-          ctx.fill();
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        ctx.fillStyle = '#CBD5E1';
-        ctx.font = 'bold 13px monospace';
-        ctx.fillText(face === 'front' ? 'FRONT VIEW' : 'REAR VIEW', px + pw / 2 - 42, py + ph + 26);
-        ctx.restore();
-      };
-
-      drawPhone('front', 95, 102, 220, 395);
-      drawPhone('rear', 435, 102, 220, 395);
-      return canvas.toDataURL('image/png');
-    } catch {
-      return null;
-    }
-  }, [state, metrics]);
-
-  const handleExportPng = () => {
-    arcadeAudio.playSfx('click');
-    const url = generateCompositePngDataUrl();
-    if (!url) {
-      showToast('Unable to export PNG.');
+  const toggleRemoveBay = (bayId: PhoneBayId) => {
+    if (bayId === 'frame') {
+      showToast('Structural Mid-Frame cannot be stripped during chassis assembly.');
       return;
     }
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.deviceName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-cgstudio.png`;
-    a.click();
-    showToast('Exported Front + Rear concept PNG!');
+    arcadeAudio.playSfx('click');
+    setState((prev) => {
+      const exists = prev.installedBays.includes(bayId);
+      const nextInstalled = exists
+        ? prev.installedBays.filter((b) => b !== bayId)
+        : [...prev.installedBays, bayId];
+      return { ...prev, installedBays: nextInstalled };
+    });
+    snapPulseRef.current = { bayId, amp: 1.0 };
+    requestRenderRef.current();
   };
 
   const handleSaveDesign = async () => {
     arcadeAudio.playSfx('click');
     setSaving(true);
-    const preview = generateCompositePngDataUrl();
+    let preview: string | null = null;
+    try {
+      const renderer = rendererRef.current;
+      const scene = sceneRef.current;
+      const camera = cameraRef.current;
+      if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+        preview = renderer.domElement.toDataURL('image/png');
+      }
+    } catch {
+      preview = null;
+    }
+
     const res = await saveCreation({
       id: editingId,
       userId,
       type: 'phone',
-      title: state.deviceName.trim() || 'Next Smartphone',
-      subtitle: `${state.sizePreset.toUpperCase()} · ${state.thicknessMm.toFixed(1)}mm · ${metrics.partCount} parts`,
-      designRating: metrics.designRating,
-      estimatedCost: metrics.estimatedPrice,
+      title: state.deviceName.trim() || 'Horizon Hardware Lab',
+      subtitle: `${state.sizePreset.toUpperCase()} · ${state.thicknessMm.toFixed(1)}mm · ${telemetry.weightGrams}g · ${telemetry.installedRatio} bays`,
+      designRating: telemetry.overallEngineeringScore,
+      estimatedCost: telemetry.totalCostUsd,
       payload: state as unknown as Record<string, unknown>,
       previewDataUrl: preview,
     });
@@ -322,24 +687,64 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
     showToast(`Saved "${res.creation.title}" (+${res.xpEarned} XP)`);
   };
 
-  const activeWallpaper =
-    PHONE_WALLPAPERS.find((w) => w.id === state.wallpaperId) || PHONE_WALLPAPERS[0];
-  const phoneDimensions =
-    state.sizePreset === 'compact'
-      ? 'w-[248px] sm:w-[270px] h-[488px] sm:h-[528px]'
-      : state.sizePreset === 'pro-max'
-        ? 'w-[280px] sm:w-[312px] h-[550px] sm:h-[600px]'
-        : 'w-[264px] sm:w-[290px] h-[520px] sm:h-[566px]';
+  const handleExportPng = () => {
+    arcadeAudio.playSfx('click');
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    if (!renderer || !scene || !camera) {
+      showToast('3D viewport unavailable for snapshot.');
+      return;
+    }
+    renderer.render(scene, camera);
+    const url = renderer.domElement.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${state.deviceName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-lab.png`;
+    a.click();
+    showToast('Exported 3D Hardware CAD PNG snapshot!');
+  };
 
-  const activeChallenge = state.activeChallengeId
-    ? PHONE_CHALLENGES.find((c) => c.id === state.activeChallengeId) || null
-    : null;
-  const challengeResult = activeChallenge ? activeChallenge.check(state, metrics.estimatedPrice) : null;
+  const handleSubmitMission = async () => {
+    if (!activeChallenge || !challengeResult?.passed) return;
+    setSubmittingMission(true);
+    const res = await submitSimulatorMissionScore(
+      {
+        userId: player?.id || '',
+        simulator: 'phone',
+        missionId: activeChallenge.id,
+        missionTitle: activeChallenge.title,
+        score: activeChallenge.rewardScore,
+        accuracy: telemetry.overallEngineeringScore,
+        componentsExplored: exploredIds.size,
+        buildTitle: state.deviceName,
+        detailsSummary: `${telemetry.weightGrams}g · $${telemetry.totalCostUsd} · ${telemetry.estimatedBatteryHours}h · ${telemetry.peakJunctionTempC}°C`,
+      },
+      isAuthenticated
+    );
+    setSubmittingMission(false);
+    setSimProgress(res.progress);
+    if (res.player) updateLocalPlayer(res.player);
+    if (res.savedToLeaderboard) {
+      arcadeAudio.playSfx('levelUp');
+      setSubmittedMissionIds((prev) => new Set(prev).add(activeChallenge.id));
+      showToast(`Mission logged to Leaderboard! +${res.xpEarned} XP`);
+    } else {
+      showToast(res.error || 'Sign in to save engineering scores to leaderboard.');
+    }
+  };
+
+  const currentBayMeta = PHONE_BAY_OPTIONS[selectedBay];
+  const currentStepIdx = Math.max(
+    0,
+    Math.min(ASSEMBLY_SEQUENCE.length - 1, state.assemblyStepIndex)
+  );
+  const guidedBayId = ASSEMBLY_SEQUENCE[currentStepIdx];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex flex-col bg-[#050813] text-slate-100">
-      {/* Top Studio Header Toolbar */}
-      <div className="border-b border-purple-500/20 bg-[#080E20] px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2">
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col bg-[#040814] text-slate-100 select-none">
+      {/* TOP ENGINEERING WORKSTATION BAR */}
+      <div className="border-b border-cyan-500/20 bg-[#080F22] px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"
@@ -353,13 +758,20 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
             <span className="hidden sm:inline">Arena</span>
           </button>
 
+          <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-400/35">
+            <Cpu size={14} className="text-purple-300" />
+            <span className="font-mono-tech text-[11px] font-bold text-purple-200 uppercase">
+              Smartphone Engineering Lab
+            </span>
+          </div>
+
           <input
             type="text"
             value={state.deviceName}
             onChange={(e) => setState((p) => ({ ...p, deviceName: e.target.value }))}
             maxLength={42}
-            aria-label="Smartphone model name"
-            className="studio-input px-2.5 py-1.5 text-sm font-heading font-bold w-36 sm:w-52 bg-[#0D162D]"
+            aria-label="Smartphone prototype name"
+            className="studio-input px-2.5 py-1.5 text-sm font-heading font-bold w-36 sm:w-48 bg-[#0C162F]"
           />
         </div>
 
@@ -368,13 +780,27 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
             type="button"
             onClick={() => {
               arcadeAudio.playSfx('click');
+              setLearningMode((v) => !v);
+            }}
+            className={`studio-btn text-xs px-2.5 py-1.5 min-h-[36px] ${
+              learningMode ? 'studio-btn-cyan' : 'studio-btn-ghost'
+            }`}
+            title="Toggle Learning Mode on component click (Shortcut: I)"
+          >
+            <BookOpen size={14} />
+            <span className="hidden sm:inline">Learn {learningMode ? 'ON' : 'OFF'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playSfx('click');
               setState(createRandomPhoneState());
-              setSelectedUid(null);
             }}
             className="studio-btn studio-btn-ghost text-xs px-2.5 py-1.5 min-h-[36px]"
           >
             <Shuffle size={14} />
-            <span className="hidden sm:inline">Random Design</span>
+            <span className="hidden sm:inline">Random</span>
           </button>
 
           <button
@@ -382,7 +808,7 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
             onClick={() => {
               arcadeAudio.playSfx('click');
               setState(createInitialPhoneState());
-              setSelectedUid(null);
+              setCompatibilityAlert(null);
             }}
             className="studio-btn studio-btn-ghost text-xs px-2.5 py-1.5 min-h-[36px]"
           >
@@ -392,14 +818,11 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
 
           <button
             type="button"
-            onClick={() => {
-              arcadeAudio.playSfx('click');
-              setShowcaseOpen(true);
-            }}
-            className="studio-btn studio-btn-purple text-xs px-3 py-1.5 min-h-[36px]"
+            onClick={handleExportPng}
+            className="studio-btn studio-btn-ghost text-xs px-2.5 py-1.5 min-h-[36px]"
+            title="Export 3D CAD Snapshot PNG"
           >
-            <Eye size={14} />
-            <span>Final Showcase</span>
+            <Camera size={14} />
           </button>
 
           <button
@@ -409,968 +832,902 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
             className="studio-btn studio-btn-primary text-xs px-3 py-1.5 min-h-[36px]"
           >
             <Save size={14} />
-            <span>{saving ? 'Saving...' : 'Save Design'}</span>
+            <span>{saving ? 'Saving...' : 'Save Lab'}</span>
           </button>
         </div>
       </div>
 
-      {/* Main 3-Column Interactive Studio */}
+      {/* MAIN WORKSPACE: 3D CAD VIEWPORT + RIGHT ENGINEERING PANEL */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
-        {/* Left Sidebar: 5 Component Library Groups */}
-        <aside className="lg:col-span-3 border-b lg:border-b-0 lg:border-r border-white/10 bg-[#080E20] flex flex-col max-h-[320px] lg:max-h-[calc(100vh-8rem)]">
-          <div className="p-3 border-b border-white/10 flex gap-1.5 overflow-x-auto studio-scroll">
-            {PHONE_COMPONENT_GROUPS.map((grp) => (
-              <button
-                key={grp.id}
-                type="button"
-                onClick={() => {
-                  arcadeAudio.playSfx('click');
-                  setActiveGroup(grp.id);
-                }}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-sora font-semibold whitespace-nowrap cursor-pointer border transition-colors ${
-                  activeGroup === grp.id
-                    ? 'bg-purple-500/25 border-purple-400 text-purple-100'
-                    : 'bg-slate-900/70 border-white/10 text-slate-300 hover:border-purple-400/40'
-                }`}
-              >
-                {grp.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="p-3 flex-1 overflow-y-auto studio-scroll space-y-2">
-            <div className="font-mono-tech text-[10px] uppercase tracking-wider text-slate-400 px-1">
-              Click or Drag Onto Phone Canvas
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
-              {PHONE_COMPONENTS.filter((c) => c.group === activeGroup).map((def) => (
-                <div
-                  key={def.id}
-                  draggable
-                  onDragEnd={(e) => handlePaletteDragEnd(def, e)}
-                  onClick={() => addComponentToCanvas(def)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      addComponentToCanvas(def);
-                    }
-                  }}
-                  className="p-2.5 rounded-xl bg-slate-900/75 border border-white/10 hover:border-cyan-400/50 flex items-center justify-between gap-2 cursor-pointer transition-all group"
-                >
-                  <div className="min-w-0">
-                    <div className="font-sora font-semibold text-xs text-white truncate">
-                      {def.name}
-                    </div>
-                    <div className="font-mono-tech text-[10px] text-slate-400">
-                      {def.allowBothFaces ? 'Front / Rear' : def.defaultFace === 'front' ? 'Front View' : 'Rear View'} · +${def.priceDelta}
-                    </div>
-                  </div>
-                  <div className="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 flex items-center justify-center shrink-0 group-hover:bg-cyan-400 group-hover:text-[#060A17] transition-colors">
-                    <Plus size={14} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
-
-        {/* Center Canvas: Realistic Phone Hardware Front & Rear Workbench */}
-        <main className="lg:col-span-5 relative flex flex-col items-center justify-center p-4 sm:p-6 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.12)_0%,rgba(6,10,23,0.95)_70%)]">
-          {/* Front / Rear Switcher + Simulated Price HUD */}
-          <div className="w-full max-w-md flex flex-wrap items-center justify-between gap-2 mb-4">
-            <div className="inline-flex rounded-xl bg-slate-900/90 border border-white/15 p-1">
-              {(['rear', 'front'] as const).map((face) => (
-                <button
-                  key={face}
-                  type="button"
-                  onClick={() => {
-                    arcadeAudio.playSfx('click');
-                    setActiveFace(face);
-                    setSelectedUid(null);
-                  }}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-sora font-semibold cursor-pointer transition-colors ${
-                    activeFace === face
-                      ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  {face === 'front' ? 'Front Display' : 'Rear Chassis'}
-                </button>
-              ))}
-            </div>
-
-            <div
-              className="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-cyan-400/30 font-mono-tech text-xs tabular-nums flex items-center gap-2"
-              title="Simulated fictional engineering cost estimate"
-            >
-              <span className="text-slate-400 text-[10px]">EST. COST</span>
-              <span className="text-emerald-300 font-bold">${metrics.estimatedPrice}</span>
-            </div>
-          </div>
-
-          {toast && (
-            <div className="mb-3 px-3.5 py-2 rounded-xl bg-emerald-950/90 border border-emerald-400/50 text-emerald-100 text-xs font-sora flex items-center gap-2">
-              <Check size={14} className="text-emerald-400" />
-              <span>{toast}</span>
-            </div>
-          )}
-
-          {/* Interactive Phone Frame */}
-          <div
-            ref={canvasRef}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setSelectedUid(null);
-            }}
-            className={`relative rounded-[44px] shadow-[0_30px_70px_-15px_rgba(0,0,0,0.85)] select-none touch-none transition-all duration-300 ${phoneDimensions}`}
-            style={{
-              backgroundColor: activeFace === 'front' ? '#070B14' : state.bodyColor,
-              border:
-                state.frameFinish === 'polished-steel'
-                  ? '5px solid #E2E8F0'
-                  : state.frameFinish === 'titanium'
-                    ? '5px solid #94A3B8'
-                    : state.frameFinish === 'carbon'
-                      ? '5px solid #334155'
-                      : '5px solid #64748B',
-              boxShadow: `0 0 0 2px rgba(255,255,255,0.12), 0 32px 64px -18px rgba(0,0,0,0.9)`,
-            }}
-          >
-            {/* Front Screen Wallpaper Layer */}
-            {activeFace === 'front' && (
-              <div
-                className="absolute inset-[9px] rounded-[34px] overflow-hidden pointer-events-none"
-                style={
-                  state.customWallpaperDataUrl
-                    ? {
-                        backgroundImage: `url(${state.customWallpaperDataUrl})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      }
-                    : { background: activeWallpaper.gradient }
-                }
-              >
-                {/* Realistic glass reflection sheen & clock */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.06] to-white/[0.14]" />
-                <div className="mt-12 text-center text-white/90 drop-shadow">
-                  <div className="font-heading font-bold text-3xl tracking-tight tabular-nums">09:41</div>
-                  <div className="font-mono-tech text-[10px] tracking-widest uppercase text-white/75 mt-0.5">
-                    {state.deviceName}
-                  </div>
-                </div>
+        {/* 3D HARDWARE CAD VIEWPORT */}
+        <div
+          className={`relative bg-[#050A18] flex flex-col ${
+            hideHud ? 'lg:col-span-12' : 'lg:col-span-7'
+          } min-h-[460px] lg:min-h-[calc(100vh-8rem)]`}
+        >
+          {/* WebGL Canvas Container (no backdrop-blur over it!) */}
+          {!webglFailed ? (
+            <div ref={mountRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" />
+          ) : (
+            /* Clean Interactive 2D Cross-Section Blueprint Fallback if WebGL disabled */
+            <div className="absolute inset-0 p-6 flex flex-col items-center justify-center bg-[#060C1D] overflow-y-auto">
+              <div className="font-mono-tech text-xs text-cyan-300 uppercase mb-3">
+                2D Internal Hardware Cutaway Schematic (WebGL Fallback)
               </div>
-            )}
-
-            {/* Rear Glass Sheen Layer */}
-            {activeFace === 'rear' && (
-              <div className="absolute inset-[4px] rounded-[38px] overflow-hidden pointer-events-none bg-gradient-to-br from-white/15 via-transparent to-black/35" />
-            )}
-
-            {/* Magnetic Center Snap Guides */}
-            {snapGuides.x && (
-              <div className="absolute top-2 bottom-2 left-1/2 w-[1px] bg-cyan-400/80 pointer-events-none z-20" />
-            )}
-            {snapGuides.y && (
-              <div className="absolute left-2 right-2 top-1/2 h-[1px] bg-cyan-400/80 pointer-events-none z-20" />
-            )}
-
-            {/* Placed Draggable Components */}
-            {state.components
-              .filter((c) => c.face === activeFace)
-              .map((comp) => {
-                const def = DEF_MAP.get(comp.defId);
-                if (!def) return null;
-                const isSelected = comp.uid === selectedUid;
-                return (
-                  <div
-                    key={comp.uid}
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      setSelectedUid(comp.uid);
-                      dragInfoRef.current = {
-                        uid: comp.uid,
-                        startClientX: e.clientX,
-                        startClientY: e.clientY,
-                        origX: comp.x,
-                        origY: comp.y,
-                      };
-                    }}
-                    style={{
-                      left: `${comp.x}%`,
-                      top: `${comp.y}%`,
-                      width: `${def.defaultW * comp.scale}%`,
-                      height: `${def.defaultH * comp.scale}%`,
-                      transform: `translate(-50%, -50%) rotate(${comp.rotation}deg)`,
-                    }}
-                    className={`absolute cursor-move z-10 touch-none flex items-center justify-center ${
-                      isSelected ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-transparent rounded-xl z-20' : ''
-                    }`}
-                  >
-                    <PhoneComponentGraphic def={def} color={comp.color} />
-                  </div>
-                );
-              })}
-          </div>
-
-          <div className="mt-3 font-mono-tech text-[11px] text-slate-400 flex items-center gap-4">
-            <span>{state.thicknessMm.toFixed(1)} mm profile</span>
-            <span>·</span>
-            <span>Simulated fictional cost & rating ({metrics.designRating}/100)</span>
-          </div>
-        </main>
-
-        {/* Right Sidebar: Selected Part Controls, Color & Wallpaper Studio, Challenges, Saved */}
-        <aside className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-white/10 bg-[#080E20] flex flex-col max-h-[540px] lg:max-h-[calc(100vh-8rem)]">
-          <div className="grid grid-cols-3 border-b border-white/10 p-1.5 gap-1 bg-[#060A17]">
-            {(
-              [
-                { id: 'studio', label: 'Inspector', icon: <Palette size={14} /> },
-                { id: 'challenges', label: 'Challenges', icon: <Target size={14} /> },
-                { id: 'saved', label: `Saved (${savedPhones.length})`, icon: <FolderOpen size={14} /> },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  arcadeAudio.playSfx('click');
-                  setRightTab(tab.id);
-                }}
-                className={`py-2 px-2 rounded-lg text-xs font-sora font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
-                  rightTab === tab.id
-                    ? 'bg-gradient-to-r from-indigo-600/35 to-purple-500/25 text-purple-100 border border-purple-400/40'
-                    : 'text-slate-400 hover:text-white border border-transparent'
-                }`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 overflow-y-auto studio-scroll p-4 space-y-5">
-            {rightTab === 'studio' && (
-              <>
-                {/* Selected Component Properties */}
-                {selectedComp && selectedDef ? (
-                  <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-400/35 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="font-mono-tech text-[10px] uppercase text-purple-300">Selected Part</div>
-                        <div className="font-sora font-bold text-sm text-white">{selectedDef.name}</div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            arcadeAudio.playSfx('click');
-                            const clone: PlacedPhoneComponent = {
-                              ...selectedComp,
-                              uid: nextPhoneUid(),
-                              x: Math.min(94, selectedComp.x + 6),
-                              y: Math.min(94, selectedComp.y + 6),
-                            };
-                            setState((p) => ({ ...p, components: [...p.components, clone] }));
-                            setSelectedUid(clone.uid);
-                          }}
-                          title="Duplicate part"
-                          className="p-1.5 rounded-lg bg-slate-900 border border-white/10 hover:border-cyan-400 text-cyan-300 cursor-pointer"
-                        >
-                          <Copy size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            arcadeAudio.playSfx('click');
-                            setState((p) => ({
-                              ...p,
-                              components: p.components.filter((c) => c.uid !== selectedComp.uid),
-                            }));
-                            setSelectedUid(null);
-                          }}
-                          title="Remove part"
-                          className="p-1.5 rounded-lg bg-slate-900 border border-white/10 hover:border-rose-400 text-rose-400 cursor-pointer"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Resize Scale */}
-                    <div>
-                      <div className="flex justify-between text-[11px] font-mono-tech text-slate-300 mb-1">
-                        <span>SIZE SCALE</span>
-                        <span className="text-cyan-300">{selectedComp.scale.toFixed(2)}x</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0.6}
-                        max={1.75}
-                        step={0.05}
-                        value={selectedComp.scale}
-                        onChange={(e) => {
-                          const scale = Number(e.target.value);
-                          setState((p) => ({
-                            ...p,
-                            components: p.components.map((c) => (c.uid === selectedComp.uid ? { ...c, scale } : c)),
-                          }));
-                        }}
-                        className="w-full accent-purple-400"
-                      />
-                    </div>
-
-                    {/* Rotate */}
-                    <div>
-                      <div className="flex justify-between text-[11px] font-mono-tech text-slate-300 mb-1">
-                        <span>ROTATION</span>
-                        <span className="text-cyan-300">{selectedComp.rotation}°</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          min={-180}
-                          max={180}
-                          step={5}
-                          value={selectedComp.rotation}
-                          onChange={(e) => {
-                            const rotation = Number(e.target.value);
-                            setState((p) => ({
-                              ...p,
-                              components: p.components.map((c) =>
-                                c.uid === selectedComp.uid ? { ...c, rotation } : c
-                              ),
-                            }));
-                          }}
-                          className="flex-1 accent-purple-400"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setState((p) => ({
-                              ...p,
-                              components: p.components.map((c) =>
-                                c.uid === selectedComp.uid ? { ...c, rotation: (c.rotation + 90) % 360 } : c
-                              ),
-                            }));
-                          }}
-                          title="Rotate 90 degrees"
-                          className="p-1.5 rounded-lg bg-slate-900 border border-white/10 text-slate-200 cursor-pointer"
-                        >
-                          <RotateCw size={13} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Part Accent Color */}
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-xs font-sora text-slate-300">Part Tint / Finish</span>
-                      <input
-                        type="color"
-                        value={selectedComp.color}
-                        onChange={(e) => {
-                          const color = e.target.value;
-                          setState((p) => ({
-                            ...p,
-                            components: p.components.map((c) => (c.uid === selectedComp.uid ? { ...c, color } : c)),
-                          }));
-                        }}
-                        className="w-9 h-7 rounded cursor-pointer bg-transparent border-0"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 rounded-xl bg-slate-900/60 border border-white/10 text-xs text-slate-400 flex items-center gap-2">
-                    <Layers size={15} className="text-cyan-400 shrink-0" />
-                    <span>Tap any component on the phone canvas to move, resize, rotate, or tint it.</span>
-                  </div>
-                )}
-
-                {/* Chassis Color Studio (10 Colors + Custom) */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono-tech text-xs text-cyan-300 uppercase">Chassis Color Studio</span>
-                    <input
-                      type="color"
-                      value={state.bodyColor}
-                      onChange={(e) => setState((p) => ({ ...p, bodyColor: e.target.value }))}
-                      aria-label="Custom smartphone color"
-                      className="w-8 h-6 rounded cursor-pointer bg-transparent border-0"
-                    />
-                  </div>
-                  <div className="grid grid-cols-5 gap-2">
-                    {PHONE_COLORS.map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => {
-                          arcadeAudio.playSfx('click');
-                          setState((p) => ({ ...p, bodyColor: c.hex }));
-                        }}
-                        title={c.name}
-                        className={`h-9 rounded-xl border-2 cursor-pointer transition-transform hover:scale-105 ${
-                          state.bodyColor.toLowerCase() === c.hex.toLowerCase()
-                            ? 'border-white ring-2 ring-cyan-400'
-                            : 'border-white/15'
-                        }`}
-                        style={{ backgroundColor: c.hex }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Form Factor & Thinness */}
-                <div className="space-y-3 p-3.5 rounded-xl bg-slate-900/70 border border-white/10">
-                  <div className="font-mono-tech text-xs text-cyan-300 uppercase">Form Factor & Thinness</div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(
-                      [
-                        { id: 'compact', label: 'Compact 5.9"' },
-                        { id: 'standard', label: 'Studio 6.3"' },
-                        { id: 'pro-max', label: 'Max 6.9"' },
-                      ] as Array<{ id: PhoneSizePreset; label: string }>
-                    ).map((sz) => (
-                      <button
-                        key={sz.id}
-                        type="button"
-                        onClick={() => {
-                          arcadeAudio.playSfx('click');
-                          setState((p) => ({ ...p, sizePreset: sz.id }));
-                        }}
-                        className={`py-1.5 px-2 rounded-lg text-[11px] font-sora font-semibold border cursor-pointer ${
-                          state.sizePreset === sz.id
-                            ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
-                            : 'bg-slate-950/60 border-white/10 text-slate-300'
-                        }`}
-                      >
-                        {sz.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-[11px] font-mono-tech text-slate-300 mb-1">
-                      <span>CHASSIS THICKNESS</span>
-                      <span className="text-cyan-300">{state.thicknessMm.toFixed(1)} mm</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={5.2}
-                      max={9.2}
-                      step={0.1}
-                      value={state.thicknessMm}
-                      onChange={(e) => setState((p) => ({ ...p, thicknessMm: Number(e.target.value) }))}
-                      className="w-full accent-cyan-400"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {(
-                      [
-                        { id: 'titanium', label: 'Brushed Titanium' },
-                        { id: 'polished-steel', label: 'Polished Steel' },
-                        { id: 'matte-aluminum', label: 'Matte Aluminum' },
-                        { id: 'carbon', label: 'Forged Carbon' },
-                      ] as const
-                    ).map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => {
-                          arcadeAudio.playSfx('click');
-                          setState((p) => ({ ...p, frameFinish: f.id }));
-                        }}
-                        className={`py-1.5 px-2 rounded-lg text-[11px] font-sora border cursor-pointer ${
-                          state.frameFinish === f.id
-                            ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
-                            : 'bg-slate-950/60 border-white/10 text-slate-300'
-                        }`}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Screen Wallpaper Studio */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono-tech text-xs text-cyan-300 uppercase">Screen Wallpaper</span>
-                    <label className="text-[11px] font-sora text-cyan-300 hover:underline cursor-pointer flex items-center gap-1">
-                      <ImagePlus size={13} /> Upload Image
-                      <input type="file" accept="image/*" onChange={handleWallpaperUpload} className="hidden" />
-                    </label>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {PHONE_WALLPAPERS.map((wp) => (
-                      <button
-                        key={wp.id}
-                        type="button"
-                        onClick={() => {
-                          arcadeAudio.playSfx('click');
-                          setState((p) => ({ ...p, wallpaperId: wp.id, customWallpaperDataUrl: null }));
-                          if (activeFace !== 'front') setActiveFace('front');
-                        }}
-                        className={`h-12 rounded-xl border-2 p-1 flex items-end text-[10px] font-sora text-white cursor-pointer ${
-                          !state.customWallpaperDataUrl && state.wallpaperId === wp.id
-                            ? 'border-white ring-2 ring-cyan-400'
-                            : 'border-white/15'
-                        }`}
-                        style={{ background: wp.gradient }}
-                      >
-                        <span className="truncate drop-shadow font-semibold">{wp.name.split(' ')[0]}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* TAB 2: 5 DESIGN CHALLENGES */}
-            {rightTab === 'challenges' && (
-              <div className="space-y-3">
-                <div className="font-mono-tech text-xs text-purple-300 uppercase">Engineering Briefs</div>
-                {PHONE_CHALLENGES.map((ch) => {
-                  const res = ch.check(state, metrics.estimatedPrice);
-                  const isActive = state.activeChallengeId === ch.id;
+              <div className="w-full max-w-md rounded-3xl border-2 border-cyan-500/40 bg-[#0A1328] p-4 grid grid-cols-2 gap-2.5">
+                {ASSEMBLY_SEQUENCE.map((bay) => {
+                  const meta = PHONE_BAY_OPTIONS[bay];
+                  const activeVal = state.bays[bay];
+                  const opt = meta.options.find((o) => o.value === activeVal);
+                  const mounted = state.installedBays.includes(bay);
                   return (
-                    <div
-                      key={ch.id}
+                    <button
+                      key={bay}
+                      type="button"
                       onClick={() => {
-                        arcadeAudio.playSfx('click');
-                        setState((p) => ({ ...p, activeChallengeId: isActive ? null : ch.id }));
+                        setSelectedBay(bay);
+                        if (opt) openComponentLearning(opt.learnComponentId);
                       }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setState((p) => ({ ...p, activeChallengeId: isActive ? null : ch.id }));
-                        }
-                      }}
-                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                        res.passed
-                          ? 'bg-emerald-500/15 border-emerald-400/50'
-                          : isActive
-                            ? 'bg-purple-500/15 border-purple-400'
-                            : 'bg-slate-900/70 border-white/10 hover:border-purple-400/40'
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer ${
+                        selectedBay === bay
+                          ? 'border-cyan-400 bg-cyan-950/60'
+                          : 'border-white/10 bg-slate-900/80'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="font-sora font-bold text-sm text-white">{ch.title}</div>
-                        <span
-                          className={`font-mono-tech text-[10px] px-2 py-0.5 rounded-md ${
-                            res.passed
-                              ? 'bg-emerald-500/25 text-emerald-200 border border-emerald-400/40'
-                              : 'bg-slate-800 text-slate-300'
-                          }`}
-                        >
-                          {res.passed ? 'PASSED' : 'ACTIVE'}
-                        </span>
+                      <div className="font-mono-tech text-[10px] text-cyan-300">{meta.title}</div>
+                      <div className="font-sora text-xs font-semibold text-white truncate">
+                        {mounted ? opt?.label : 'BAY EMPTY'}
                       </div>
-                      <p className="text-xs text-slate-400 mt-1">{ch.description}</p>
-                      <div className="mt-2.5 space-y-1">
-                        {res.checklist.map((item) => (
-                          <div key={item.label} className="text-[11px] flex items-center gap-1.5">
-                            <span className={item.ok ? 'text-emerald-400' : 'text-slate-500'}>
-                              {item.ok ? '✓' : '○'}
-                            </span>
-                            <span className={item.ok ? 'text-emerald-200' : 'text-slate-400'}>{item.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* TAB 3: SAVED SMARTPHONES */}
-            {rightTab === 'saved' && (
-              <div className="space-y-3">
-                {savedPhones.length === 0 ? (
-                  <div className="p-6 text-center rounded-xl bg-slate-900/60 border border-white/10 text-xs text-slate-400">
-                    No saved smartphones yet. Click <strong>Save Design</strong> in the top bar!
-                  </div>
-                ) : (
-                  savedPhones.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-3 rounded-xl bg-slate-900/75 border border-white/10 flex items-center justify-between gap-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-sora font-semibold text-sm text-white truncate">{item.title}</div>
-                        <div className="font-mono-tech text-[10px] text-cyan-300">
-                          Est. ${item.estimatedCost} · Rating {item.designRating}/100
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            arcadeAudio.playSfx('click');
-                            const payload = item.payload as Partial<PhoneDesignState>;
-                            setState({ ...createInitialPhoneState(), ...payload });
-                            setEditingId(item.id);
-                            setRightTab('studio');
-                          }}
-                          className="studio-btn studio-btn-primary text-[11px] px-2.5 py-1 min-h-[30px]"
-                        >
-                          Open
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            arcadeAudio.playSfx('click');
-                            await removeCreation(item.id, userId);
-                            await refreshSaved();
-                          }}
-                          aria-label={`Delete ${item.title}`}
-                          className="studio-btn studio-btn-ghost p-1.5 min-h-[30px] text-rose-400"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+          {/* Top-Left Compact Simulated Telemetry Badge */}
+          {!hideHud && (
+            <div className="relative z-10 pointer-events-none p-3 sm:p-4 flex flex-wrap items-start justify-between gap-2">
+              <div className="pointer-events-auto rounded-xl bg-[#070E20]/95 border border-cyan-500/35 px-3 py-2 flex flex-wrap items-center gap-3 text-xs font-mono-tech tabular-nums shadow-lg">
+                <div>
+                  <span className="text-slate-400 text-[10px] block">SIM RATING</span>
+                  <span className="text-cyan-300 font-bold">{telemetry.overallEngineeringScore}/100</span>
+                </div>
+                <div className="h-6 w-px bg-white/10" />
+                <div>
+                  <span className="text-slate-400 text-[10px] block">MASS / COST</span>
+                  <span className="text-white font-bold">
+                    {telemetry.weightGrams}g · ${telemetry.totalCostUsd}
+                  </span>
+                </div>
+                <div className="h-6 w-px bg-white/10" />
+                <div>
+                  <span className="text-slate-400 text-[10px] block">THERMAL</span>
+                  <span
+                    className={`font-bold ${
+                      telemetry.peakJunctionTempC > 78 ? 'text-rose-400' : 'text-emerald-300'
+                    }`}
+                  >
+                    {telemetry.peakJunctionTempC}°C ({telemetry.thermalScore})
+                  </span>
+                </div>
+                <div className="h-6 w-px bg-white/10" />
+                <div>
+                  <span className="text-slate-400 text-[10px] block">EXPLORED</span>
+                  <span className="text-purple-300 font-bold">
+                    {Math.max(exploredIds.size, simProgress.componentsExplored)}/{PHONE_ENGINEERING_COMPONENTS.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pointer-events-auto flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShortcutsOpen((v) => !v)}
+                  className="p-2 rounded-lg bg-[#070E20]/95 border border-white/15 text-slate-200 hover:border-cyan-400 cursor-pointer"
+                  title="CAD Keyboard & Mouse Controls (?)"
+                >
+                  <HelpCircle size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHideHud(true)}
+                  className="p-2 rounded-lg bg-[#070E20]/95 border border-white/15 text-slate-200 hover:border-cyan-400 cursor-pointer"
+                  title="Hide HUD Overlay (H)"
+                >
+                  <EyeOff size={15} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {hideHud && (
+            <button
+              type="button"
+              onClick={() => setHideHud(false)}
+              className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-lg bg-[#070E20]/95 border border-cyan-400/50 text-xs font-mono-tech text-cyan-200 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Eye size={14} /> Show Workstation (H / ESC)
+            </button>
+          )}
+
+          {/* Toast & Compatibility Alerts */}
+          <div className="relative z-10 pointer-events-none px-4 space-y-2 max-w-md">
+            {toast && (
+              <div className="pointer-events-auto px-3.5 py-2 rounded-xl bg-emerald-950/95 border border-emerald-400/60 text-emerald-100 text-xs font-sora flex items-center gap-2 shadow-lg">
+                <Check size={14} className="text-emerald-400 shrink-0" />
+                <span>{toast}</span>
+              </div>
+            )}
+            {compatibilityAlert && (
+              <div className="pointer-events-auto px-3.5 py-2.5 rounded-xl bg-rose-950/95 border border-rose-400/70 text-rose-100 text-xs font-sora flex items-start gap-2 shadow-lg">
+                <AlertTriangle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+                <div className="flex-1">{compatibilityAlert}</div>
+                <button
+                  type="button"
+                  onClick={() => setCompatibilityAlert(null)}
+                  className="text-rose-300 hover:text-white cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
               </div>
             )}
           </div>
 
-          {/* Active Challenge Live Mini Banner */}
-          {activeChallenge && challengeResult && (
-            <div className="border-t border-white/10 bg-[#060A17] px-4 py-2.5 text-xs flex items-center justify-between">
-              <span className="font-sora text-purple-200 truncate">{activeChallenge.title}</span>
-              <span className={`font-mono-tech font-bold ${challengeResult.passed ? 'text-emerald-400' : 'text-amber-300'}`}>
-                {challengeResult.passed ? 'CHALLENGE COMPLETE!' : `${challengeResult.checklist.filter((c) => c.ok).length}/${challengeResult.checklist.length}`}
-              </span>
+          {shortcutsOpen && (
+            <div className="absolute top-16 right-4 z-30 w-72 rounded-xl bg-[#070E20] border border-cyan-400/40 p-3.5 shadow-2xl text-xs space-y-2">
+              <div className="flex items-center justify-between font-mono-tech text-cyan-300 font-bold">
+                <span>CAD CONTROLS &amp; SHORTCUTS</span>
+                <button type="button" onClick={() => setShortcutsOpen(false)} className="cursor-pointer">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="space-y-1 text-slate-300 font-mono-tech text-[11px]">
+                <div>• Left Drag / 1-Finger: 360° Rotate</div>
+                <div>• Scroll / Pinch: Zoom In/Out</div>
+                <div>• Right Drag / 2-Finger: Pan View</div>
+                <div>• Click Internal Part: Inspect &amp; Learn</div>
+                <div>• R: Reset · F: Front · T: Top</div>
+                <div>• E: Explode 7 Layers · I: Learn · H: Hide HUD</div>
+              </div>
             </div>
           )}
-        </aside>
-      </div>
 
-      {/* FINAL PRODUCT SHOWCASE MODAL */}
-      {showcaseOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-[#020617]/88 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setShowcaseOpen(false)}
-        >
-          <div
-            className="studio-card-solid max-w-4xl w-full p-6 sm:p-8 border border-cyan-400/35 space-y-6 my-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="font-mono-tech text-xs uppercase tracking-widest text-cyan-300 flex items-center gap-1.5">
-                  <Sparkles size={14} /> Final Product Reveal
-                </div>
-                <h2 className="font-heading font-bold text-2xl sm:text-3xl text-white mt-1">
-                  {state.deviceName}
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Simulated Est. Price: <strong className="text-emerald-300 font-mono-tech">${metrics.estimatedPrice}</strong> (fictional educational calculation) · Design Rating: <strong className="text-cyan-300 font-mono-tech">{metrics.designRating}/100</strong> · {state.thicknessMm.toFixed(1)}mm
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowcaseOpen(false)}
-                className="studio-btn studio-btn-ghost p-2 min-h-[36px]"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Dual Side-by-Side Front + Rear Render */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 place-items-center bg-slate-950/70 rounded-2xl p-6 border border-white/10">
-              {(['front', 'rear'] as const).map((face) => (
-                <div key={face} className="flex flex-col items-center gap-3">
-                  <div
-                    className="relative w-[200px] h-[390px] rounded-[34px] border-4 border-slate-400 shadow-2xl overflow-hidden"
-                    style={{
-                      backgroundColor: face === 'front' ? '#070B14' : state.bodyColor,
+          {/* Bottom Camera & Inspection Mode Toolbar */}
+          {!hideHud && (
+            <div className="mt-auto relative z-10 p-3 flex flex-wrap items-center justify-between gap-2 bg-[#070E20]/95 border-t border-white/10">
+              {/* View Mode Switcher */}
+              <div className="flex items-center gap-1">
+                {(
+                  [
+                    { id: 'assembled', label: 'Assembled' },
+                    { id: 'back-removed', label: 'Back Removed' },
+                    { id: 'exploded', label: 'Exploded (E)' },
+                  ] as Array<{ id: PhoneInspectionViewMode; label: string }>
+                ).map((vm) => (
+                  <button
+                    key={vm.id}
+                    type="button"
+                    onClick={() => {
+                      arcadeAudio.playSfx('click');
+                      setState((p) => ({ ...p, viewMode: vm.id }));
                     }}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-mono-tech font-bold border cursor-pointer transition-colors ${
+                      state.viewMode === vm.id
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-300'
+                        : 'bg-slate-900 border-white/15 text-slate-200 hover:border-cyan-400/50'
+                    }`}
                   >
-                    {face === 'front' && (
-                      <div
-                        className="absolute inset-[6px] rounded-[26px]"
-                        style={
-                          state.customWallpaperDataUrl
-                            ? {
-                                backgroundImage: `url(${state.customWallpaperDataUrl})`,
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center',
-                              }
-                            : { background: activeWallpaper.gradient }
-                        }
-                      />
-                    )}
-                    {state.components
-                      .filter((c) => c.face === face)
-                      .map((comp) => {
-                        const def = DEF_MAP.get(comp.defId);
-                        if (!def) return null;
-                        return (
-                          <div
-                            key={comp.uid}
-                            style={{
-                              left: `${comp.x}%`,
-                              top: `${comp.y}%`,
-                              width: `${def.defaultW * comp.scale}%`,
-                              height: `${def.defaultH * comp.scale}%`,
-                              transform: `translate(-50%, -50%) rotate(${comp.rotation}deg)`,
-                            }}
-                            className="absolute flex items-center justify-center"
-                          >
-                            <PhoneComponentGraphic def={def} color={comp.color} />
-                          </div>
-                        );
-                      })}
-                  </div>
-                  <span className="font-mono-tech text-xs uppercase text-slate-300">
-                    {face === 'front' ? 'Front Display' : 'Rear Hardware'}
-                  </span>
-                </div>
-              ))}
-            </div>
+                    {vm.label}
+                  </button>
+                ))}
+              </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-2">
+              {/* Camera Angle Presets */}
+              <div className="flex flex-wrap items-center gap-1">
+                {(
+                  [
+                    { id: 'hero', label: 'Reset (R)' },
+                    { id: 'front', label: 'Front (F)' },
+                    { id: 'rear', label: 'Rear' },
+                    { id: 'side', label: 'Side' },
+                    { id: 'top', label: 'Top (T)' },
+                    { id: 'internals', label: 'PCB Zoom' },
+                  ] as Array<{ id: PhoneCameraPreset; label: string }>
+                ).map((cam) => (
+                  <button
+                    key={cam.id}
+                    type="button"
+                    onClick={() => setCameraView(cam.id)}
+                    className="px-2 py-1 rounded-md bg-slate-900 border border-white/10 hover:border-cyan-400 text-[10px] font-mono-tech text-slate-300 cursor-pointer"
+                  >
+                    {cam.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT ENGINEERING WORKSTATION PANEL */}
+        {!hideHud && (
+          <aside className="lg:col-span-5 border-t lg:border-t-0 lg:border-l border-white/10 bg-[#080F22] flex flex-col max-h-[640px] lg:max-h-[calc(100vh-8rem)]">
+            {/* 5 Workstation Tabs */}
+            <div className="grid grid-cols-5 border-b border-white/10 p-1.5 gap-1 bg-[#050A18]">
+              {(
+                [
+                  { id: 'assemble', label: 'Assemble', icon: <Wrench size={13} /> },
+                  { id: 'telemetry', label: 'Specs', icon: <Activity size={13} /> },
+                  { id: 'challenges', label: '7 Missions', icon: <Target size={13} /> },
+                  { id: 'components', label: 'Learn', icon: <Layers size={13} /> },
+                  { id: 'saved', label: `Saved (${savedPhones.length})`, icon: <FolderOpen size={13} /> },
+                ] as const
+              ).map((tab) => (
                 <button
-                  type="button"
-                  onClick={() => {
-                    setShowcaseOpen(false);
-                  }}
-                  className="studio-btn studio-btn-ghost text-xs sm:text-sm"
-                >
-                  Edit Again
-                </button>
-                <button
+                  key={tab.id}
                   type="button"
                   onClick={() => {
                     arcadeAudio.playSfx('click');
-                    setState(createRandomPhoneState());
+                    setActiveTab(tab.id);
                   }}
-                  className="studio-btn studio-btn-ghost text-xs sm:text-sm"
+                  className={`py-2 px-1.5 rounded-lg text-[11px] font-sora font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-cyan-500 text-slate-950 font-bold'
+                      : 'text-slate-300 hover:text-white bg-slate-900/60 border border-white/5'
+                  }`}
                 >
-                  <Shuffle size={14} /> Random Design
+                  {tab.icon}
+                  <span className="truncate">{tab.label}</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleExportPng}
-                  className="studio-btn studio-btn-ghost text-xs sm:text-sm"
-                >
-                  <Camera size={14} /> Export PNG
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={onExit}
-                  className="studio-btn studio-btn-ghost text-xs sm:text-sm"
-                >
-                  Back to Arena
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void handleSaveDesign()}
-                  className="studio-btn studio-btn-primary text-xs sm:text-sm"
-                >
-                  <Save size={14} /> {saving ? 'Saving...' : 'Save Design'}
-                </button>
-              </div>
+              ))}
             </div>
-          </div>
-        </div>
-      )}
+
+            <div className="flex-1 overflow-y-auto studio-scroll p-4 space-y-4">
+              {/* TAB 1: ASSEMBLE HARDWARE BAYS + STEP-BY-STEP + COMPATIBILITY */}
+              {activeTab === 'assemble' && (
+                <>
+                  {/* Step-by-Step Guided Assembly Banner */}
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="font-mono-tech text-[10px] uppercase text-cyan-300 font-bold">
+                          Interactive Hardware Assembly ({telemetry.installedRatio} Bays Mounted)
+                        </div>
+                        <div className="font-sora text-xs text-slate-300 mt-0.5">
+                          Click any 3D part in the phone or pick a hardware bay below to install, inspect, or strip.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          arcadeAudio.playSfx('click');
+                          setGuidedAssembly((v) => !v);
+                          if (!guidedAssembly) setSelectedBay(guidedBayId);
+                        }}
+                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-mono-tech font-bold border shrink-0 cursor-pointer ${
+                          guidedAssembly
+                            ? 'bg-emerald-500 text-slate-950 border-emerald-300'
+                            : 'bg-slate-800 text-slate-200 border-white/15'
+                        }`}
+                      >
+                        {guidedAssembly ? 'Guided ON' : 'Guided Steps'}
+                      </button>
+                    </div>
+
+                    {guidedAssembly && (
+                      <div className="p-2.5 rounded-lg bg-[#050A18] border border-emerald-500/35 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-mono-tech">
+                          <span className="text-emerald-300 font-bold">
+                            STEP {currentStepIdx + 1} / {ASSEMBLY_SEQUENCE.length}: {PHONE_BAY_OPTIONS[guidedBayId].title}
+                          </span>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              disabled={currentStepIdx === 0}
+                              onClick={() => {
+                                const prevIdx = Math.max(0, currentStepIdx - 1);
+                                setState((p) => ({ ...p, assemblyStepIndex: prevIdx }));
+                                setSelectedBay(ASSEMBLY_SEQUENCE[prevIdx]);
+                              }}
+                              className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 disabled:opacity-40 cursor-pointer"
+                            >
+                              Prev
+                            </button>
+                            <button
+                              type="button"
+                              disabled={currentStepIdx >= ASSEMBLY_SEQUENCE.length - 1}
+                              onClick={() => {
+                                const nextIdx = Math.min(ASSEMBLY_SEQUENCE.length - 1, currentStepIdx + 1);
+                                setState((p) => ({ ...p, assemblyStepIndex: nextIdx }));
+                                setSelectedBay(ASSEMBLY_SEQUENCE[nextIdx]);
+                              }}
+                              className="px-2 py-0.5 rounded bg-emerald-600 text-white disabled:opacity-40 cursor-pointer"
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-300">
+                          {PHONE_BAY_OPTIONS[guidedBayId].instruction}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Compatibility Diagnostic Summary */}
+                  {telemetry.issues.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {telemetry.issues.map((issue) => (
+                        <div
+                          key={issue.id}
+                          className={`p-2.5 rounded-xl border text-xs flex items-start gap-2 ${
+                            issue.severity === 'error'
+                              ? 'bg-rose-950/70 border-rose-500/50 text-rose-100'
+                              : 'bg-amber-950/70 border-amber-500/50 text-amber-100'
+                          }`}
+                        >
+                          <AlertTriangle
+                            size={14}
+                            className={`shrink-0 mt-0.5 ${
+                              issue.severity === 'error' ? 'text-rose-400' : 'text-amber-400'
+                            }`}
+                          />
+                          <div>
+                            <div className="font-sora font-bold">{issue.title}</div>
+                            <div className="text-[11px] opacity-90 mt-0.5">{issue.detail}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-emerald-950/50 border border-emerald-500/35 text-emerald-200 text-xs flex items-center gap-2">
+                      <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+                      <span>All thermal, mechanical clearance, and electrical compatibility checks passed.</span>
+                    </div>
+                  )}
+
+                  {/* 11-Bay Selector Chips */}
+                  <div>
+                    <div className="font-mono-tech text-[10px] uppercase text-slate-400 mb-1.5">
+                      Select Hardware Bay
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                      {ASSEMBLY_SEQUENCE.map((bay) => {
+                        const meta = PHONE_BAY_OPTIONS[bay];
+                        const mounted = state.installedBays.includes(bay);
+                        const hasErr = telemetry.issues.some((i) => i.bay === bay && i.severity === 'error');
+                        return (
+                          <button
+                            key={bay}
+                            type="button"
+                            onClick={() => {
+                              arcadeAudio.playSfx('click');
+                              setSelectedBay(bay);
+                            }}
+                            className={`px-2 py-1.5 rounded-lg text-[11px] font-sora font-semibold text-left border cursor-pointer flex items-center justify-between gap-1 ${
+                              selectedBay === bay
+                                ? 'bg-cyan-500/20 border-cyan-400 text-cyan-100'
+                                : hasErr
+                                  ? 'bg-rose-950/50 border-rose-500/45 text-rose-200'
+                                  : 'bg-slate-900/75 border-white/10 text-slate-300 hover:border-cyan-400/40'
+                            }`}
+                          >
+                            <span className="truncate">{meta.title.replace(/^\d+\.\s*/, '')}</span>
+                            <span
+                              className={`w-2 h-2 rounded-full shrink-0 ${
+                                hasErr ? 'bg-rose-400' : mounted ? 'bg-emerald-400' : 'bg-slate-600'
+                              }`}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Selected Bay Component Options */}
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-white/15 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="font-mono-tech text-[10px] text-cyan-300 uppercase">
+                          {currentBayMeta.title}
+                        </div>
+                        <div className="text-[11px] text-slate-400">{currentBayMeta.instruction}</div>
+                      </div>
+                      {selectedBay !== 'frame' && (
+                        <button
+                          type="button"
+                          onClick={() => toggleRemoveBay(selectedBay)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-mono-tech font-bold border cursor-pointer shrink-0 ${
+                            state.installedBays.includes(selectedBay)
+                              ? 'bg-rose-500/15 border-rose-400/40 text-rose-200 hover:bg-rose-500/25'
+                              : 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200'
+                          }`}
+                        >
+                          {state.installedBays.includes(selectedBay) ? 'Remove Bay' : 'Mount Bay'}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      {currentBayMeta.options.map((opt) => {
+                        const isSelected =
+                          state.bays[selectedBay] === opt.value &&
+                          state.installedBays.includes(selectedBay);
+                        return (
+                          <div
+                            key={opt.value}
+                            onClick={() =>
+                              installBayOption(
+                                selectedBay,
+                                opt.value as PhoneBayConfig[typeof selectedBay],
+                                opt.learnComponentId
+                              )
+                            }
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                installBayOption(
+                                  selectedBay,
+                                  opt.value as PhoneBayConfig[typeof selectedBay],
+                                  opt.learnComponentId
+                                );
+                              }
+                            }}
+                            className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                              isSelected
+                                ? 'bg-cyan-500/20 border-cyan-400 text-white'
+                                : 'bg-[#060C1D] border-white/10 text-slate-300 hover:border-cyan-400/45'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="font-sora font-bold text-xs text-white">{opt.label}</div>
+                              <div className="font-mono-tech text-[10px] text-slate-400 mt-0.5">
+                                {opt.shortSpec} · +${opt.costDelta} · {opt.weightGrams}g
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openComponentLearning(opt.learnComponentId);
+                                }}
+                                title="Inspect engineering sheet"
+                                className="p-1.5 rounded-lg bg-slate-900 border border-white/15 text-cyan-300 hover:border-cyan-400 cursor-pointer"
+                              >
+                                <BookOpen size={13} />
+                              </button>
+                              <span
+                                className={`px-2 py-1 rounded-md font-mono-tech text-[10px] font-bold ${
+                                  isSelected
+                                    ? 'bg-cyan-400 text-slate-950'
+                                    : 'bg-slate-800 text-slate-300'
+                                }`}
+                              >
+                                {isSelected ? 'MOUNTED' : 'SNAP IN'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Chassis Dimensions, Thickness & Finish */}
+                  <div className="p-3.5 rounded-xl bg-slate-900/75 border border-white/10 space-y-3">
+                    <div className="font-mono-tech text-[10px] uppercase text-cyan-300 flex items-center gap-1.5">
+                      <Sliders size={12} /> Chassis Envelope &amp; Finish
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(
+                        [
+                          { id: 'compact', label: 'Compact 5.9"' },
+                          { id: 'standard', label: 'Studio 6.3"' },
+                          { id: 'pro-max', label: 'Max 6.9"' },
+                        ] as Array<{ id: PhoneSizePreset; label: string }>
+                      ).map((sz) => (
+                        <button
+                          key={sz.id}
+                          type="button"
+                          onClick={() => {
+                            arcadeAudio.playSfx('click');
+                            setState((p) => ({ ...p, sizePreset: sz.id }));
+                          }}
+                          className={`py-1.5 px-2 rounded-lg text-[11px] font-sora font-semibold border cursor-pointer ${
+                            state.sizePreset === sz.id
+                              ? 'bg-cyan-500/25 border-cyan-400 text-cyan-100'
+                              : 'bg-slate-950/60 border-white/10 text-slate-300'
+                          }`}
+                        >
+                          {sz.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[11px] font-mono-tech text-slate-300 mb-1">
+                        <span>CHASSIS THICKNESS</span>
+                        <span className="text-cyan-300">{state.thicknessMm.toFixed(1)} mm</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={5.5}
+                        max={9.2}
+                        step={0.1}
+                        value={state.thicknessMm}
+                        onChange={(e) =>
+                          setState((p) => ({ ...p, thicknessMm: Number(e.target.value) }))
+                        }
+                        className="w-full accent-cyan-400"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {PHONE_COLORS.map((c) => (
+                        <button
+                          key={c.hex}
+                          type="button"
+                          onClick={() => {
+                            arcadeAudio.playSfx('click');
+                            setState((p) => ({ ...p, bodyColor: c.hex }));
+                          }}
+                          title={c.name}
+                          className={`h-7 rounded-lg border-2 cursor-pointer ${
+                            state.bodyColor.toLowerCase() === c.hex.toLowerCase()
+                              ? 'border-white ring-2 ring-cyan-400'
+                              : 'border-white/15'
+                          }`}
+                          style={{ backgroundColor: c.hex }}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1.5 pt-1">
+                      {PHONE_WALLPAPERS.map((wp) => (
+                        <button
+                          key={wp.id}
+                          type="button"
+                          onClick={() => {
+                            arcadeAudio.playSfx('click');
+                            setState((p) => ({ ...p, wallpaperId: wp.id }));
+                          }}
+                          className={`h-8 rounded-lg border text-[10px] font-mono-tech text-white px-1 truncate cursor-pointer ${
+                            state.wallpaperId === wp.id
+                              ? 'border-cyan-300 ring-1 ring-cyan-400'
+                              : 'border-white/15'
+                          }`}
+                          style={{ background: wp.gradient }}
+                        >
+                          {wp.name.split(' ')[0]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* TAB 2: SIMULATED ENGINEERING SPECS & 6 PERFORMANCE INDICES */}
+              {activeTab === 'telemetry' && (
+                <div className="space-y-4">
+                  <div className="p-3 rounded-xl bg-amber-950/45 border border-amber-500/35 text-[11px] text-amber-100 font-sora">
+                    <strong>Simulated Engineering Specs:</strong> All BOM costs ($), junction temperatures, power efficiency, and battery hours below are educational engineering simulations, not commercial product figures.
+                  </div>
+
+                  {/* 6 Core Metrics Grid */}
+                  <div className="grid grid-cols-2 gap-2.5 font-mono-tech tabular-nums">
+                    <div className="p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                      <div className="text-[10px] text-slate-400">EST. BOM COST (SIM)</div>
+                      <div className="text-lg font-bold text-emerald-300">${telemetry.totalCostUsd}</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                      <div className="text-[10px] text-slate-400">TOTAL MASS</div>
+                      <div className="text-lg font-bold text-cyan-300">{telemetry.weightGrams} g</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                      <div className="text-[10px] text-slate-400">BATTERY ENDURANCE</div>
+                      <div className="text-lg font-bold text-white">{telemetry.estimatedBatteryHours} hrs</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                      <div className="text-[10px] text-slate-400">PEAK JUNCTION TEMP</div>
+                      <div
+                        className={`text-lg font-bold ${
+                          telemetry.peakJunctionTempC > 78 ? 'text-rose-400' : 'text-emerald-300'
+                        }`}
+                      >
+                        {telemetry.peakJunctionTempC}°C
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Performance Bars */}
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-white/10 space-y-2.5">
+                    <div className="font-mono-tech text-[10px] uppercase text-cyan-300">
+                      6-Axis Hardware Evaluation
+                    </div>
+                    {[
+                      { label: 'Compute Performance', val: telemetry.performanceScore, color: 'bg-cyan-400' },
+                      { label: 'Power Efficiency', val: telemetry.powerEfficiencyScore, color: 'bg-emerald-400' },
+                      { label: 'Thermal Management', val: telemetry.thermalScore, color: 'bg-amber-400' },
+                      { label: 'Structural Durability', val: telemetry.durabilityScore, color: 'bg-indigo-400' },
+                      { label: 'Optical Camera System', val: telemetry.cameraScore, color: 'bg-purple-400' },
+                      { label: 'Overall Engineering Rating', val: telemetry.overallEngineeringScore, color: 'bg-blue-400' },
+                    ].map((bar) => (
+                      <div key={bar.label} className="space-y-1">
+                        <div className="flex justify-between text-xs font-mono-tech">
+                          <span className="text-slate-300">{bar.label}</span>
+                          <span className="text-white font-bold">{bar.val}/100</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-950 overflow-hidden">
+                          <div
+                            className={`h-full ${bar.color} transition-all duration-300`}
+                            style={{ width: `${bar.val}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Engineering Equations */}
+                  <div className="p-3.5 rounded-xl bg-[#050A18] border border-cyan-500/25 space-y-2">
+                    <div className="font-mono-tech text-[10px] uppercase text-cyan-300">
+                      Active Physics &amp; Power Equations
+                    </div>
+                    {telemetry.formulas.map((f) => (
+                      <div key={f.label} className="text-xs font-mono-tech flex flex-col gap-0.5 border-b border-white/5 pb-1.5 last:border-0 last:pb-0">
+                        <span className="text-slate-400 text-[10px]">{f.label}</span>
+                        <span className="text-cyan-200">{f.equation}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: 7 ENGINEERING MISSIONS & LEADERBOARD SUBMISSION */}
+              {activeTab === 'challenges' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono-tech text-xs text-purple-300 uppercase font-bold">
+                      7 Smartphone Engineering Missions
+                    </span>
+                    <span className="font-mono-tech text-[10px] text-slate-400">
+                      XP: {simProgress.engineeringXp} · Done: {simProgress.missionsCompleted}
+                    </span>
+                  </div>
+
+                  {activeChallenge && challengeResult && (
+                    <div
+                      className={`p-3.5 rounded-xl border space-y-2 ${
+                        challengeResult.passed
+                          ? 'bg-emerald-950/60 border-emerald-400'
+                          : 'bg-purple-950/50 border-purple-400/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-sora font-bold text-xs text-white">
+                          Active: {activeChallenge.title}
+                        </div>
+                        <span className="font-mono-tech text-[10px] px-2 py-0.5 rounded bg-slate-900 text-cyan-300">
+                          +{activeChallenge.rewardScore} pts
+                        </span>
+                      </div>
+
+                      {challengeResult.passed && (
+                        <div className="pt-1">
+                          {isAuthenticated ? (
+                            <button
+                              type="button"
+                              disabled={submittingMission || submittedMissionIds.has(activeChallenge.id)}
+                              onClick={() => void handleSubmitMission()}
+                              className="studio-btn studio-btn-emerald w-full py-2 text-xs"
+                            >
+                              <Trophy size={14} />
+                              <span>
+                                {submittedMissionIds.has(activeChallenge.id)
+                                  ? 'Mission Score Saved to Leaderboard!'
+                                  : submittingMission
+                                    ? 'Submitting Score...'
+                                    : `Submit Verified Score (+${activeChallenge.rewardScore} pts)`}
+                              </span>
+                            </button>
+                          ) : (
+                            <div className="p-2 rounded-lg bg-slate-900/90 border border-amber-400/40 text-[11px] text-amber-200 flex items-center gap-2">
+                              <Lock size={14} className="shrink-0 text-amber-400" />
+                              <span>Mission passed! Sign in from the top bar to save your score to the leaderboard.</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {PHONE_CHALLENGES.map((ch) => {
+                    const res = ch.check(state, telemetry);
+                    const isActive = state.activeChallengeId === ch.id;
+                    return (
+                      <div
+                        key={ch.id}
+                        onClick={() => {
+                          arcadeAudio.playSfx('click');
+                          setState((p) => ({ ...p, activeChallengeId: isActive ? null : ch.id }));
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setState((p) => ({ ...p, activeChallengeId: isActive ? null : ch.id }));
+                          }
+                        }}
+                        className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                          res.passed
+                            ? 'bg-emerald-500/15 border-emerald-400/50'
+                            : isActive
+                              ? 'bg-cyan-500/15 border-cyan-400'
+                              : 'bg-slate-900/75 border-white/10 hover:border-cyan-400/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-sora font-bold text-xs sm:text-sm text-white">
+                            {ch.title}
+                          </div>
+                          <span
+                            className={`font-mono-tech text-[10px] px-2 py-0.5 rounded ${
+                              res.passed
+                                ? 'bg-emerald-500 text-slate-950 font-bold'
+                                : isActive
+                                  ? 'bg-cyan-500 text-slate-950 font-bold'
+                                  : 'bg-slate-800 text-slate-300'
+                            }`}
+                          >
+                            {res.passed ? 'PASSED' : isActive ? 'ACTIVE' : 'SELECT'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">{ch.description}</p>
+                        <div className="mt-2 space-y-1">
+                          {res.checklist.map((item) => (
+                            <div key={item.label} className="text-[11px] flex items-center gap-1.5">
+                              <span className={item.ok ? 'text-emerald-400' : 'text-slate-500'}>
+                                {item.ok ? '✓' : '○'}
+                              </span>
+                              <span className={item.ok ? 'text-emerald-200' : 'text-slate-400'}>
+                                {item.label}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* TAB 4: LEARN ALL 38 SMARTPHONE HARDWARE COMPONENTS */}
+              {activeTab === 'components' && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {PHONE_SUBSYSTEMS.map((sub) => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => {
+                          arcadeAudio.playSfx('click');
+                          setSubsystemFilter(sub.id);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-sora font-semibold border cursor-pointer ${
+                          subsystemFilter === sub.id
+                            ? 'bg-cyan-500 text-slate-950 border-cyan-300 font-bold'
+                            : 'bg-slate-900 border-white/10 text-slate-300'
+                        }`}
+                      >
+                        {sub.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    {PHONE_ENGINEERING_COMPONENTS.filter((c) => {
+                      if (subsystemFilter === 'processing') return c.subsystem === 'Processing System';
+                      if (subsystemFilter === 'display') return c.subsystem === 'Display System';
+                      if (subsystemFilter === 'battery') return c.subsystem === 'Battery & Power';
+                      if (subsystemFilter === 'camera') return c.subsystem === 'Camera System';
+                      if (subsystemFilter === 'connectivity') return c.subsystem === 'Connectivity';
+                      return c.subsystem === 'Physical Engineering';
+                    }).map((comp) => {
+                      const explored = exploredIds.has(comp.id);
+                      return (
+                        <button
+                          key={comp.id}
+                          type="button"
+                          onClick={() => openComponentLearning(comp.id)}
+                          className="w-full p-3 rounded-xl bg-slate-900/80 border border-white/10 hover:border-cyan-400 text-left flex items-center justify-between gap-2 cursor-pointer"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-sora font-bold text-xs text-white flex items-center gap-1.5">
+                              <span className="truncate">{comp.name}</span>
+                              {explored && (
+                                <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                              {comp.whatDoesItDo}
+                            </div>
+                          </div>
+                          <span className="px-2 py-1 rounded-md bg-cyan-500/15 border border-cyan-400/30 font-mono-tech text-[10px] text-cyan-300 shrink-0">
+                            Inspect
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: SAVED HARDWARE PROTOTYPES */}
+              {activeTab === 'saved' && (
+                <div className="space-y-3">
+                  {savedPhones.length === 0 ? (
+                    <div className="p-6 text-center rounded-xl bg-slate-900/60 border border-white/10 text-xs text-slate-400">
+                      No saved smartphones yet. Click <strong>Save Lab</strong> above!
+                    </div>
+                  ) : (
+                    savedPhones.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3 rounded-xl bg-slate-900/75 border border-white/10 flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-sora font-semibold text-sm text-white truncate">
+                            {item.title}
+                          </div>
+                          <div className="font-mono-tech text-[10px] text-cyan-300">
+                            Est. ${item.estimatedCost} · Rating {item.designRating}/100
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              arcadeAudio.playSfx('click');
+                              setState(normalizePhoneState(item.payload as Partial<PhoneDesignState>));
+                              setEditingId(item.id);
+                              showToast(`Loaded "${item.title}"`);
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-xs font-sora cursor-pointer"
+                          >
+                            Load
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              arcadeAudio.playSfx('click');
+                              void removeCreation(userId, item.id).then(refreshSaved);
+                            }}
+                            className="p-1.5 rounded-lg bg-slate-950 border border-white/10 text-rose-400 hover:border-rose-400 cursor-pointer"
+                            title="Delete prototype"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
+      </div>
+
+      {/* LEARNING MODE INSPECTOR MODAL */}
+      <LearningInspectorModal
+        component={inspectedComp}
+        exploredCount={exploredIds.size}
+        totalComponents={PHONE_ENGINEERING_COMPONENTS.length}
+        onClose={() => setInspectedComp(null)}
+      />
     </div>
   );
-};
-
-/* Crisp Vector Hardware Renderer for Every Component Kind */
-const PhoneComponentGraphic: React.FC<{ def: PhoneComponentDef; color: string }> = ({ def, color }) => {
-  const Lens = ({ className = '' }: { className?: string }) => (
-    <div className={`rounded-full bg-slate-950 border-2 border-slate-500 flex items-center justify-center shadow-inner ${className}`}>
-      <div className="w-[48%] h-[48%] rounded-full bg-gradient-to-tr from-blue-900 via-cyan-500/60 to-slate-900 border border-cyan-300/40" />
-    </div>
-  );
-
-  switch (def.kind) {
-    case 'cam-single':
-      return <Lens className="w-full h-full" />;
-    case 'cam-dual':
-      return (
-        <div
-          className="w-full h-full rounded-2xl border border-white/25 p-1.5 flex flex-col justify-between items-center shadow-lg"
-          style={{ backgroundColor: color }}
-        >
-          <Lens className="w-7 h-7" />
-          <Lens className="w-7 h-7" />
-        </div>
-      );
-    case 'cam-triple':
-      return (
-        <div
-          className="w-full h-full rounded-3xl border border-white/25 p-2 grid grid-cols-2 grid-rows-2 gap-1.5 place-items-center shadow-xl"
-          style={{ backgroundColor: color }}
-        >
-          <Lens className="w-7 h-7" />
-          <div className="row-span-2 flex items-center">
-            <Lens className="w-7 h-7" />
-          </div>
-          <Lens className="w-7 h-7" />
-        </div>
-      );
-    case 'cam-quad':
-      return (
-        <div
-          className="w-full h-full rounded-3xl border border-white/25 p-2 grid grid-cols-2 grid-rows-2 gap-1.5 place-items-center shadow-xl"
-          style={{ backgroundColor: color }}
-        >
-          <Lens className="w-7 h-7" />
-          <Lens className="w-7 h-7" />
-          <Lens className="w-7 h-7" />
-          <Lens className="w-7 h-7" />
-        </div>
-      );
-    case 'cam-giant':
-      return (
-        <div
-          className="w-full h-full rounded-full border-2 border-cyan-400/50 p-2 grid grid-cols-2 grid-rows-2 gap-1 place-items-center shadow-2xl"
-          style={{ backgroundColor: color }}
-        >
-          <Lens className="w-7 h-7" />
-          <Lens className="w-7 h-7" />
-          <Lens className="w-6 h-6" />
-          <div className="w-4 h-4 rounded-full bg-amber-200 border border-white" />
-        </div>
-      );
-    case 'cam-periscope':
-      return (
-        <div
-          className="w-full h-full rounded-2xl border border-white/25 px-2 py-1.5 flex items-center justify-between shadow-lg"
-          style={{ backgroundColor: color }}
-        >
-          <Lens className="w-6 h-6" />
-          <div className="w-7 h-5 rounded-md bg-slate-950 border border-cyan-400/50 flex items-center justify-center">
-            <div className="w-3.5 h-3.5 rounded-sm bg-cyan-900 border border-cyan-300/60" />
-          </div>
-        </div>
-      );
-    case 'disp-island':
-      return (
-        <div
-          className="w-full h-full rounded-full border border-white/15 flex items-center justify-between px-2.5"
-          style={{ backgroundColor: color }}
-        >
-          <div className="w-2.5 h-2.5 rounded-full bg-blue-950 border border-cyan-400/40" />
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
-        </div>
-      );
-    case 'disp-notch':
-      return (
-        <div
-          className="w-full h-full rounded-b-2xl border-b border-x border-white/15 flex items-center justify-center gap-2"
-          style={{ backgroundColor: color }}
-        >
-          <div className="w-6 h-1 rounded-full bg-slate-700" />
-          <div className="w-2 h-2 rounded-full bg-blue-900" />
-        </div>
-      );
-    case 'disp-punch':
-      return <div className="w-4 h-4 rounded-full border border-cyan-300/40" style={{ backgroundColor: color }} />;
-    case 'disp-clean':
-      return (
-        <div className="w-full h-full rounded-xl border border-cyan-400/35 bg-cyan-500/10 flex items-center justify-center font-mono-tech text-[9px] text-cyan-200">
-          EDGE-TO-EDGE OLED
-        </div>
-      );
-    case 'disp-foldable':
-      return (
-        <div
-          className="w-full h-full rounded-md border-x border-white/30 bg-gradient-to-r from-slate-700 via-slate-300 to-slate-700 opacity-85"
-          style={{ borderColor: color }}
-        />
-      );
-    case 'btn-power':
-    case 'btn-volume':
-    case 'btn-action':
-    case 'btn-custom':
-      return (
-        <div
-          className="w-full h-full rounded-full border border-white/40 shadow"
-          style={{ backgroundColor: color }}
-        />
-      );
-    case 'hw-usbc':
-      return (
-        <div className="w-full h-full rounded-full bg-slate-950 border-2 flex items-center justify-center" style={{ borderColor: color }}>
-          <div className="w-[70%] h-[35%] rounded-full bg-slate-500" />
-        </div>
-      );
-    case 'hw-speaker':
-      return (
-        <div className="w-full h-full flex items-center justify-center gap-1">
-          {[0, 1, 2, 3, 4].map((d) => (
-            <span key={d} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
-          ))}
-        </div>
-      );
-    case 'hw-coil':
-      return (
-        <div
-          className="w-full h-full rounded-full border-4 flex flex-col items-center justify-center"
-          style={{ borderColor: color }}
-        >
-          <div className="w-2 h-4 rounded-full mt-14" style={{ backgroundColor: color }} />
-        </div>
-      );
-    case 'hw-fingerprint':
-      return (
-        <div
-          className="w-full h-full rounded-full border-2 border-dashed flex items-center justify-center bg-cyan-500/10"
-          style={{ borderColor: color }}
-        >
-          <Smartphone size={12} style={{ color }} />
-        </div>
-      );
-    case 'des-logo':
-      return (
-        <div
-          className="w-full h-full rounded-xl border border-white/25 flex items-center justify-center font-heading font-bold text-xs tracking-tight bg-white/5"
-          style={{ color }}
-        >
-          CG
-        </div>
-      );
-    case 'des-ring':
-      return (
-        <div
-          className="w-full h-full rounded-full border-[3px]"
-          style={{ borderColor: color }}
-        />
-      );
-    case 'des-flash':
-      return (
-        <div
-          className="w-full h-full rounded-full border border-white/60 shadow-[0_0_12px_rgba(254,240,138,0.65)]"
-          style={{ backgroundColor: color }}
-        />
-      );
-    case 'des-frame':
-      return (
-        <div
-          className="w-full h-full rounded-2xl border-2 bg-white/5"
-          style={{ borderColor: color }}
-        />
-      );
-    default:
-      return (
-        <div
-          className="w-full h-full rounded-full opacity-85 shadow-md"
-          style={{ backgroundColor: color }}
-        />
-      );
-  }
 };

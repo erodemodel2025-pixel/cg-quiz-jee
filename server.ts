@@ -1484,6 +1484,7 @@ async function startServer() {
     const delExamAttempts = db.prepare('DELETE FROM exam_attempts WHERE is_test = 1').run().changes;
     const delExamSessions = db.prepare('DELETE FROM exam_sessions WHERE is_test = 1').run().changes;
     const delCreations = db.prepare('DELETE FROM creations WHERE is_test = 1').run().changes;
+    const delSimulatorResults = db.prepare('DELETE FROM simulator_results WHERE is_test = 1').run().changes;
     res.json({
       cleared: {
         testPlayers: delPlayers,
@@ -1494,6 +1495,7 @@ async function startServer() {
         testExamAttempts: delExamAttempts,
         testExamSessions: delExamSessions,
         testCreations: delCreations,
+        testSimulatorResults: delSimulatorResults,
       },
       preservedRealData: true,
     });

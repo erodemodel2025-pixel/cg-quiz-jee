@@ -102,6 +102,23 @@ const EDGE_SESSIONS = new Map<string, EdgeGameSession>();
 const EDGE_GAME_RESULTS: EdgeGameResultRecord[] = [];
 const EDGE_RESULT_BY_SESSION = new Map<string, GameResultPayload>();
 
+interface EdgeSimulatorResultRecord {
+  userId: string;
+  username: string;
+  className: string;
+  title: string;
+  simulator: 'car' | 'phone';
+  missionId: string;
+  missionTitle: string;
+  score: number;
+  accuracy: number;
+  componentsExplored: number;
+  xpEarned: number;
+  isTest: boolean;
+  createdAt: string;
+}
+const EDGE_SIMULATOR_RESULTS: EdgeSimulatorResultRecord[] = [];
+
 function normalizeGameDifficulty(raw: unknown): GameDifficultyId | null {
   const val = String(raw ?? '').trim().toLowerCase();
   return VALID_GAME_DIFFICULTIES.has(val as GameDifficultyId) ? (val as GameDifficultyId) : null;
@@ -1560,6 +1577,179 @@ export async function onRequest(context: PagesContext): Promise<Response> {
         leveledUp: false,
         unlockedAchievements: [],
         player: null,
+      });
+    }
+
+    if (path === '/api/simulator/submit' && method === 'POST') {
+      const body = await parseJsonBody(request);
+      const userId = String(body.userId ?? '').trim();
+      if (!userId) {
+        return jsonResponse(
+          { error: 'Authentication required: sign in to save simulator scores.' },
+          401
+        );
+      }
+      const player = getOrHydrateEdgePlayer(
+        userId,
+        typeof body.username === 'string' ? body.username : undefined,
+        typeof body.className === 'string' ? body.className : undefined
+      );
+      if (!player) {
+        return jsonResponse(
+          { error: 'Registered player account required to rank on simulator leaderboard.' },
+          401
+        );
+      }
+
+      const simulator = body.simulator === 'phone' ? 'phone' : 'car';
+      const missionId = String(body.missionId ?? '').trim();
+      if (!missionId) return jsonResponse({ error: 'missionId is required.' }, 400);
+
+      const missionTitle = String(body.missionTitle ?? 'Engineering Mission').trim();
+      const score = Math.max(0, Math.min(5000, Math.round(Number(body.score ?? 0))));
+      const accuracy = Math.max(0, Math.min(100, Number(body.accuracy ?? 0)));
+      const componentsExplored = Math.max(0, Math.round(Number(body.componentsExplored ?? 0)));
+      const nowIso = new Date().toISOString();
+
+      const existing = EDGE_SIMULATOR_RESULTS.find(
+        (r) => r.userId === userId && r.simulator === simulator && r.missionId === missionId
+      );
+      const xpEarned = existing ? 0 : Math.max(40, Math.round(score * 0.15) + componentsExplored * 2);
+
+      const progression =
+        xpEarned > 0
+          ? updateEdgePlayerProgression({
+              player,
+              xpEarned,
+              maxStreak: 1,
+              newAchievements: componentsExplored >= 10 ? ['first_run', 'scholar'] : ['first_run'],
+            })
+          : null;
+
+      if (existing) {
+        existing.score = Math.max(existing.score, score);
+        existing.accuracy = Math.max(existing.accuracy, accuracy);
+        existing.componentsExplored = Math.max(existing.componentsExplored, componentsExplored);
+        existing.createdAt = nowIso;
+      } else {
+        EDGE_SIMULATOR_RESULTS.push({
+          userId,
+          username: progression?.player.name || player.name,
+          className: progression?.player.className || player.className,
+          title: progression?.player.title || player.title,
+          simulator,
+          missionId,
+          missionTitle,
+          score,
+          accuracy,
+          componentsExplored,
+          xpEarned,
+          isTest: body.isTest === true,
+          createdAt: nowIso,
+        });
+      }
+
+      const mine = EDGE_SIMULATOR_RESULTS.filter((r) => r.userId === userId);
+      const totalScore = mine.reduce((acc, r) => acc + r.score, 0);
+      const simXp = mine.reduce((acc, r) => acc + r.xpEarned, 0);
+      const avgAcc = mine.length
+        ? Math.round((mine.reduce((acc, r) => acc + r.accuracy, 0) / mine.length) * 10) / 10
+        : 0;
+      const maxExplored = mine.reduce((mx, r) => Math.max(mx, r.componentsExplored), componentsExplored);
+
+      return jsonResponse({
+        savedToLeaderboard: true,
+        alreadyCompletedMission: Boolean(existing),
+        xpEarned,
+        leveledUp: progression?.leveledUp ?? false,
+        unlockedAchievements: progression?.unlockedAchievements ?? [],
+        player: progression?.player ?? player,
+        progress: {
+          engineeringXp: simXp,
+          missionsCompleted: mine.length,
+          componentsExplored: maxExplored,
+          engineeringAccuracy: avgAcc,
+          totalScore,
+        },
+      });
+    }
+
+    if (path === '/api/simulator/leaderboard' && method === 'GET') {
+      const simulator = (url.searchParams.get('simulator') ?? 'all').toLowerCase();
+      const search = (url.searchParams.get('search') ?? '').trim().toLowerCase();
+      const userId = (url.searchParams.get('userId') ?? '').trim();
+
+      const filtered = EDGE_SIMULATOR_RESULTS.filter(
+        (r) => !r.isTest && (simulator === 'all' || r.simulator === simulator)
+      );
+      const byUser = new Map<
+        string,
+        {
+          latest: EdgeSimulatorResultRecord;
+          totalPoints: number;
+          bestScore: number;
+          count: number;
+          accSum: number;
+          maxExplored: number;
+        }
+      >();
+      for (const r of filtered) {
+        const cur = byUser.get(r.userId);
+        if (!cur) {
+          byUser.set(r.userId, {
+            latest: r,
+            totalPoints: r.score,
+            bestScore: r.score,
+            count: 1,
+            accSum: r.accuracy,
+            maxExplored: r.componentsExplored,
+          });
+        } else {
+          cur.totalPoints += r.score;
+          cur.bestScore = Math.max(cur.bestScore, r.score);
+          cur.count += 1;
+          cur.accSum += r.accuracy;
+          cur.maxExplored = Math.max(cur.maxExplored, r.componentsExplored);
+          if (r.createdAt > cur.latest.createdAt) cur.latest = r;
+        }
+      }
+      const rankedAll: GameLeaderboardEntry[] = [...byUser.values()]
+        .sort(
+          (a, b) =>
+            b.totalPoints - a.totalPoints ||
+            b.accSum / b.count - a.accSum / a.count ||
+            b.count - a.count
+        )
+        .map((x, idx) => ({
+          rank: idx + 1,
+          userId: x.latest.userId,
+          username: x.latest.username,
+          className: x.latest.className,
+          title: x.latest.title,
+          score: x.totalPoints,
+          bestScore: x.bestScore,
+          totalPoints: x.totalPoints,
+          gamesPlayed: x.count,
+          accuracy: Math.round((x.accSum / x.count) * 10) / 10,
+          completionTime: x.maxExplored,
+          difficulty: x.latest.simulator === 'phone' ? 'phone-lab' : 'car-sim',
+          category: 'engineering-simulator',
+          createdAt: x.latest.createdAt,
+        }));
+
+      const currentUserEntry = userId ? rankedAll.find((e) => e.userId === userId) || null : null;
+      const entries = search
+        ? rankedAll.filter((e) => e.username.toLowerCase().includes(search))
+        : rankedAll;
+
+      return jsonResponse({
+        view: 'overall',
+        rankingMethodDescription:
+          'Ranked by verified cumulative engineering mission points across the Car Tuning Simulator and Smartphone Engineering Lab.',
+        totalPlayers: rankedAll.length,
+        top3: rankedAll.slice(0, 3),
+        entries: entries.slice(0, 100),
+        currentUserEntry,
       });
     }
 

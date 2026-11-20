@@ -245,6 +245,23 @@ db.exec(`
     is_test INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS simulator_results (
+    result_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    simulator TEXT NOT NULL,
+    mission_id TEXT NOT NULL,
+    mission_title TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    accuracy REAL NOT NULL,
+    components_explored INTEGER NOT NULL DEFAULT 0,
+    build_title TEXT NOT NULL DEFAULT '',
+    details_summary TEXT NOT NULL DEFAULT '',
+    xp_earned INTEGER NOT NULL DEFAULT 0,
+    is_test INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
 `);
 
 // Safe index creation for fast query/analytics performance
@@ -256,6 +273,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_game_sessions_user ON game_sessions(user_id, started_at DESC);
   CREATE INDEX IF NOT EXISTS idx_game_results_user ON game_results(user_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_game_results_score ON game_results(is_test, score DESC, accuracy DESC, completion_time ASC);
+  CREATE INDEX IF NOT EXISTS idx_simulator_results_user ON simulator_results(user_id, simulator, mission_id, created_at DESC);
 `);
 
 // Safe additive column migration for per-session option-shuffled question snapshots

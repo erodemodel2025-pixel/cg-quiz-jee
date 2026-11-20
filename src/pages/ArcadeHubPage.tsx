@@ -132,13 +132,13 @@ export const ArcadeHubPage: React.FC<ArcadeHubPageProps> = ({
           Featured Interactive Design Studios
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Game 1: Automobile Engineer */}
+          {/* Game 1: Car Tuning Engineering Simulator */}
           <div className="studio-card-interactive overflow-hidden flex flex-col justify-between group">
             <div>
               <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#0B1120] border-b border-[var(--studio-border)]">
                 <img
                   src="/src/assets/images/card_auto_engineer_1795174514567.jpg"
-                  alt="Become an Automobile Engineer 3D Car Studio"
+                  alt="Car Tuning Engineering Simulator 3D CAD Studio"
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -146,13 +146,13 @@ export const ArcadeHubPage: React.FC<ArcadeHubPageProps> = ({
               </div>
               <div className="p-6 space-y-2">
                 <div className="flex items-center gap-2 text-[var(--studio-cyan-text)] font-mono-tech text-xs font-bold">
-                  <Car size={15} /> Game 01 · Three.js 3D Studio · 8 Chassis
+                  <Car size={15} /> Sim 01 · 3D Automotive CAD · 43 Subsystems · 7 Missions
                 </div>
                 <h3 className="font-heading font-bold text-2xl text-[var(--studio-text)]">
-                  Become an Automobile Engineer
+                  Car Tuning Engineering Simulator
                 </h3>
                 <p className="text-sm text-[var(--studio-text-secondary)] leading-relaxed">
-                  Select from 8 iconic vehicle types, rotate &amp; zoom in full 3D, customize 13 categories (paint finishes, rims, spoilers, headlights, body kits, interiors), experiment in the Suspension &amp; EV/V8 Engineering Lab, and export your creation.
+                  Open the articulated hood, switch to Tech X-Ray or Exploded CAD view, click and learn 43 engineering components across Engine, Transmission, Suspension, Brakes, ECU &amp; Aero, and complete 7 engineering missions.
                 </p>
               </div>
             </div>
@@ -165,19 +165,19 @@ export const ArcadeHubPage: React.FC<ArcadeHubPageProps> = ({
                 }}
                 className="w-full studio-btn studio-btn-cyan text-sm py-3"
               >
-                <span>Open 3D Car Studio</span>
+                <span>Launch Car Engineering Simulator</span>
                 <ArrowRight size={16} />
               </button>
             </div>
           </div>
 
-          {/* Game 2: Design the Next iPhone */}
+          {/* Game 2: Smartphone Engineering Lab */}
           <div className="studio-card-interactive overflow-hidden flex flex-col justify-between group">
             <div>
               <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#0B1120] border-b border-[var(--studio-border)]">
                 <img
                   src="/src/assets/images/card_phone_designer_1795174514396.jpg"
-                  alt="Design the Next iPhone Hardware Studio"
+                  alt="Smartphone Engineering Lab 3D Hardware Studio"
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -185,13 +185,13 @@ export const ArcadeHubPage: React.FC<ArcadeHubPageProps> = ({
               </div>
               <div className="p-6 space-y-2">
                 <div className="flex items-center gap-2 text-[var(--studio-purple-text)] font-mono-tech text-xs font-bold">
-                  <Smartphone size={15} /> Game 02 · Drag &amp; Drop Lab · 5 Challenges
+                  <Smartphone size={15} /> Sim 02 · 3D Hardware CAD · 38 Parts · 7 Missions
                 </div>
                 <h3 className="font-heading font-bold text-2xl text-[var(--studio-text)]">
-                  Design the Next iPhone
+                  Smartphone Engineering Lab
                 </h3>
                 <p className="text-sm text-[var(--studio-text-secondary)] leading-relaxed">
-                  Place and customize pro camera arrays, Dynamic Capsules, foldable hinges, titanium buttons, wallpapers, and magnetic charging coils on Front &amp; Rear hardware canvases. Beat 5 engineering briefs and reveal your final showcase.
+                  Remove the rear glass or explode 7 hardware Z-layers in 3D, snap 11 internal bays into place (3nm SoC, LPDDR5X, Vapor Chamber, Li-Ion BMS, OIS Periscope, Qi2 Coil), pass real compatibility checks, and rank up.
                 </p>
               </div>
             </div>
@@ -204,7 +204,7 @@ export const ArcadeHubPage: React.FC<ArcadeHubPageProps> = ({
                 }}
                 className="w-full studio-btn studio-btn-purple text-sm py-3"
               >
-                <span>Open Smartphone Designer</span>
+                <span>Open Smartphone Engineering Lab</span>
                 <ArrowRight size={16} />
               </button>
             </div>

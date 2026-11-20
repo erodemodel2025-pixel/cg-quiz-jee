@@ -284,8 +284,8 @@ export const TopNav: React.FC<TopNavProps> = ({
               {[
                 { id: 'home' as AppRoute, label: 'Home Studio', icon: <Home size={15} /> },
                 { id: 'easy-quizzes' as AppRoute, label: 'Easy Quiz Zone (330+ Qs)', icon: <Sparkles size={15} /> },
-                { id: 'auto-engineer' as AppRoute, label: '3D Automobile Engineer', icon: <Car size={15} /> },
-                { id: 'phone-designer' as AppRoute, label: 'Design the Next iPhone', icon: <Smartphone size={15} /> },
+                { id: 'auto-engineer' as AppRoute, label: '3D Car Engineering Simulator', icon: <Car size={15} /> },
+                { id: 'phone-designer' as AppRoute, label: 'Smartphone Engineering Lab', icon: <Smartphone size={15} /> },
                 { id: 'arcade' as AppRoute, label: 'Game Arena & Classic Labs', icon: <Gamepad2 size={15} /> },
                 { id: 'leaderboard' as AppRoute, label: 'Leaderboard & Trophy Room', icon: <Trophy size={15} /> },
               ].map((item) => {

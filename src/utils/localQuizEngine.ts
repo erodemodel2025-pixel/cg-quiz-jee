@@ -149,6 +149,20 @@ interface LocalStore {
   arcadeLeaderboard: StoredLeaderboardEntry[];
   customQuestions: ExamQuestion[];
   creations: SavedCreation[];
+  simulatorResults?: Array<{
+    userId: string;
+    username: string;
+    className: string;
+    title: string;
+    simulator: 'car' | 'phone';
+    missionId: string;
+    missionTitle: string;
+    score: number;
+    accuracy: number;
+    componentsExplored: number;
+    xpEarned: number;
+    createdAt: string;
+  }>;
 }
 
 function emptyStore(): LocalStore {
@@ -166,6 +180,7 @@ function emptyStore(): LocalStore {
     arcadeLeaderboard: [],
     customQuestions: [],
     creations: [],
+    simulatorResults: [],
   };
 }
 
@@ -1904,6 +1919,150 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
         userId: params.get('userId') || '',
       })
     );
+  }
+
+  if (pathname === '/api/simulator/submit' && method === 'POST') {
+    const userId = String(body.userId ?? '').trim();
+    if (!userId) return fail('Authentication required: sign in to save simulator scores.', 401);
+    const p = store.players[userId];
+    if (!p) return fail('Registered player account required.', 401);
+
+    const simulator = body.simulator === 'phone' ? 'phone' : 'car';
+    const missionId = String(body.missionId ?? '').trim();
+    const missionTitle = String(body.missionTitle ?? 'Engineering Mission').trim();
+    const score = Math.max(0, Math.min(5000, Math.round(Number(body.score ?? 0))));
+    const accuracy = Math.max(0, Math.min(100, Number(body.accuracy ?? 0)));
+    const componentsExplored = Math.max(0, Math.round(Number(body.componentsExplored ?? 0)));
+    const nowIso = new Date().toISOString();
+
+    store.simulatorResults ??= [];
+    const existing = store.simulatorResults.find(
+      (r) => r.userId === userId && r.simulator === simulator && r.missionId === missionId
+    );
+    const xpEarned = existing ? 0 : Math.max(40, Math.round(score * 0.15) + componentsExplored * 2);
+
+    let leveledUp = false;
+    if (xpEarned > 0) {
+      const prevLvl = p.level;
+      p.xp += xpEarned;
+      p.gamesPlayed += 1;
+      const lvl = computeLevelFromXp(p.xp);
+      p.level = lvl.level;
+      p.title = lvl.title;
+      p.unlockedThemes = getUnlockedThemesForLevel(lvl.level);
+      leveledUp = lvl.level > prevLvl;
+    }
+
+    if (existing) {
+      existing.score = Math.max(existing.score, score);
+      existing.accuracy = Math.max(existing.accuracy, accuracy);
+      existing.componentsExplored = Math.max(existing.componentsExplored, componentsExplored);
+      existing.createdAt = nowIso;
+    } else {
+      store.simulatorResults.push({
+        userId,
+        username: p.name,
+        className: p.className,
+        title: p.title,
+        simulator,
+        missionId,
+        missionTitle,
+        score,
+        accuracy,
+        componentsExplored,
+        xpEarned,
+        createdAt: nowIso,
+      });
+    }
+    writeStore(store);
+
+    const mine = store.simulatorResults.filter((r) => r.userId === userId);
+    return ok({
+      savedToLeaderboard: true,
+      alreadyCompletedMission: Boolean(existing),
+      xpEarned,
+      leveledUp,
+      unlockedAchievements: [],
+      player: { ...p },
+      progress: {
+        engineeringXp: mine.reduce((s, r) => s + r.xpEarned, 0),
+        missionsCompleted: mine.length,
+        componentsExplored: mine.reduce((mx, r) => Math.max(mx, r.componentsExplored), componentsExplored),
+        engineeringAccuracy: mine.length
+          ? Math.round((mine.reduce((s, r) => s + r.accuracy, 0) / mine.length) * 10) / 10
+          : 0,
+        totalScore: mine.reduce((s, r) => s + r.score, 0),
+      },
+    });
+  }
+
+  if (pathname === '/api/simulator/leaderboard' && method === 'GET') {
+    const simulator = (params.get('simulator') || 'all').toLowerCase();
+    const search = (params.get('search') || '').trim().toLowerCase();
+    const userId = (params.get('userId') || '').trim();
+    const list = (store.simulatorResults || []).filter(
+      (r) => simulator === 'all' || r.simulator === simulator
+    );
+    const byUser = new Map<
+      string,
+      {
+        latest: (typeof list)[number];
+        totalPoints: number;
+        bestScore: number;
+        count: number;
+        accSum: number;
+        maxExplored: number;
+      }
+    >();
+    for (const r of list) {
+      const cur = byUser.get(r.userId);
+      if (!cur) {
+        byUser.set(r.userId, {
+          latest: r,
+          totalPoints: r.score,
+          bestScore: r.score,
+          count: 1,
+          accSum: r.accuracy,
+          maxExplored: r.componentsExplored,
+        });
+      } else {
+        cur.totalPoints += r.score;
+        cur.bestScore = Math.max(cur.bestScore, r.score);
+        cur.count += 1;
+        cur.accSum += r.accuracy;
+        cur.maxExplored = Math.max(cur.maxExplored, r.componentsExplored);
+      }
+    }
+    const rankedAll: GameLeaderboardEntry[] = [...byUser.values()]
+      .sort((a, b) => b.totalPoints - a.totalPoints || b.accSum / b.count - a.accSum / a.count)
+      .map((x, idx) => ({
+        rank: idx + 1,
+        userId: x.latest.userId,
+        username: x.latest.username,
+        className: x.latest.className,
+        title: x.latest.title,
+        score: x.totalPoints,
+        bestScore: x.bestScore,
+        totalPoints: x.totalPoints,
+        gamesPlayed: x.count,
+        accuracy: Math.round((x.accSum / x.count) * 10) / 10,
+        completionTime: x.maxExplored,
+        difficulty: x.latest.simulator === 'phone' ? 'phone-lab' : 'car-sim',
+        category: 'engineering-simulator',
+        createdAt: x.latest.createdAt,
+      }));
+    const entries = search
+      ? rankedAll.filter((e) => e.username.toLowerCase().includes(search))
+      : rankedAll;
+    return ok({
+      view: 'overall',
+      rankingMethodDescription:
+        'Ranked by verified cumulative engineering mission points across the Car Tuning Simulator and Smartphone Engineering Lab.',
+      totalPlayers: rankedAll.length,
+      top3: rankedAll.slice(0, 3),
+      entries: entries.slice(0, 100),
+      currentUserEntry: userId ? rankedAll.find((e) => e.userId === userId) || null : null,
+    });
   }
 
   return { handled: false, ok: false, status: 404, data: null, error: null };

@@ -73,26 +73,26 @@ export const HomePage: React.FC<HomePageProps> = ({
     },
     {
       id: 'auto-engineer',
-      kicker: '3D Garage · 8 Platforms · 13 Mod Systems',
-      title: 'Become an Automobile Engineer',
+      kicker: '3D CAD Simulator · 43 Subsystems · 7 Engineering Missions',
+      title: 'Car Tuning Engineering Simulator',
       description:
-        'Enter the real-time Three.js 3D car studio. Pick from 8 vehicles, customize 13 part systems, tune suspension and EV or V8 powertrains, and save builds.',
+        'Open the hood, toggle Tech X-Ray & Exploded CAD views, inspect 43 real automotive subsystems (I4/V6/V8, Turbo, DCT, MacPherson/Double Wishbone, ABS, Aero), and validate telemetry.',
       image: '/src/assets/images/card_auto_engineer_1795174514567.jpg',
       btnClass: 'studio-btn-cyan',
       icon: Car,
-      cta: 'Launch 3D Car Studio',
+      cta: 'Launch Car Engineering Sim',
       onClick: onOpenAutoEngineer,
     },
     {
       id: 'phone-designer',
-      kicker: 'Hardware Lab · 24 Components · 5 Challenges',
-      title: 'Design the Next iPhone',
+      kicker: '3D Hardware CAD · 38 Internal Parts · 7 Missions',
+      title: 'Smartphone Engineering Lab',
       description:
-        'Arrange cameras, Dynamic Capsules, titanium trims, and wireless charging coils across Front and Rear hardware views, complete design challenges, and export.',
+        'Remove the back panel or explode 7 hardware layers in 3D, assemble 11 internal bays (SoC, LPDDR5X, Vapor Chamber, Li-Ion BMS, OIS Periscope, Qi2), pass compatibility checks, and learn.',
       image: '/src/assets/images/card_phone_designer_1795174514396.jpg',
       btnClass: 'studio-btn-purple',
       icon: Smartphone,
-      cta: 'Open Phone Designer',
+      cta: 'Open Smartphone Lab',
       onClick: onOpenPhoneDesigner,
     },
   ];
@@ -181,15 +181,15 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[var(--studio-border)]">
-                <span className="font-sora text-sm font-semibold text-[var(--studio-text)]">3D Car Engineer</span>
+                <span className="font-sora text-sm font-semibold text-[var(--studio-text)]">Car Engineering Sim</span>
                 <span className="font-mono-tech text-xs font-bold text-[var(--studio-cyan-text)] tabular-nums">
-                  8 Vehicles
+                  43 Parts · 3D
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[var(--studio-border)]">
-                <span className="font-sora text-sm font-semibold text-[var(--studio-text)]">iPhone Designer</span>
+                <span className="font-sora text-sm font-semibold text-[var(--studio-text)]">Smartphone Eng. Lab</span>
                 <span className="font-mono-tech text-xs font-bold text-[var(--studio-purple-text)] tabular-nums">
-                  24 Parts
+                  38 Parts · 3D
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2">
