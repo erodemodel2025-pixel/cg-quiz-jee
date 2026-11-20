@@ -19,6 +19,13 @@ import {
   selectBalancedQuizQuestions,
   shuffleQuestionOptions,
 } from '../../shared/quizPipeline.ts';
+import {
+  DIFFICULTY_MAP,
+  GAME_CATEGORIES,
+  GAME_DIFFICULTY_CONFIGS,
+  SMART_QUESTION_BANK,
+  selectSmartGameQuestions,
+} from '../../shared/smartQuestionBank.ts';
 import type {
   AnalyticsSummary,
   ClassOption,
@@ -33,7 +40,12 @@ import type {
   ExamSettings,
   ExamStreakState,
   ExamUserAnswer,
+  GameDifficultyId,
+  GameEvaluatedItem,
+  GameLeaderboardEntry,
+  GameLeaderboardView,
   GameModeId,
+  GameResultPayload,
   LeaderboardEntry,
   MistakeCategory,
   MistakeRecord,
@@ -42,6 +54,7 @@ import type {
   PublicExamQuestion,
   QuizMode,
   SavedCreation,
+  SmartGameQuestion,
   SpeedClass,
   TopicStat,
 } from '../../shared/types.ts';
@@ -78,6 +91,38 @@ type StoredMistakeRecord = MistakeRecord & { userId: string };
 type StoredAttempt = ExamResultSummary & { userId: string; subject: string; categoryId: string };
 type StoredLeaderboardEntry = LeaderboardEntry & { mode: QuizMode };
 
+interface LocalSmartGameSession {
+  sessionId: string;
+  userId: string;
+  username: string;
+  difficulty: GameDifficultyId;
+  category: string;
+  questions: SmartGameQuestion[];
+  startedAt: number;
+  status: 'active' | 'completed';
+}
+
+interface LocalSmartGameResult {
+  resultId: string;
+  sessionId: string;
+  userId: string;
+  username: string;
+  className: string;
+  title: string;
+  score: number;
+  correctAnswers: number;
+  incorrectAnswers: number;
+  unanswered: number;
+  totalQuestions: number;
+  accuracy: number;
+  completionTime: number;
+  difficulty: GameDifficultyId;
+  category: string;
+  xpEarned: number;
+  payload: GameResultPayload;
+  createdAt: string;
+}
+
 interface LocalStore {
   profiles: Record<
     string,
@@ -95,6 +140,8 @@ interface LocalStore {
   players: Record<string, PlayerProfile>;
   sessions: Record<string, LocalExamSession>;
   arcadeSessions: Record<string, LocalArcadeSession>;
+  gameSessions?: Record<string, LocalSmartGameSession>;
+  gameResults?: LocalSmartGameResult[];
   attempts: StoredAttempt[];
   mistakes: StoredMistakeRecord[];
   bookmarks: Record<string, string[]>;
@@ -110,6 +157,8 @@ function emptyStore(): LocalStore {
     players: {},
     sessions: {},
     arcadeSessions: {},
+    gameSessions: {},
+    gameResults: [],
     attempts: [],
     mistakes: [],
     bookmarks: {},
@@ -995,6 +1044,22 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
     const existingId = body.existingId ? String(body.existingId) : null;
     if (name.length < 2) return fail('Player name must be at least 2 characters.', 400);
 
+    const byName = Object.values(store.players).find(
+      (p) => p.name.toLowerCase() === name.toLowerCase()
+    );
+    if (byName) {
+      if (existingId && byName.id === existingId) {
+        return ok({ player: byName, migrated: true });
+      }
+      if (byName.className === className) {
+        return ok({ player: byName, signedInExisting: true });
+      }
+      return fail(
+        'That handle is already registered in a different class. Choose a unique handle or select its matching class to sign back in.',
+        409
+      );
+    }
+
     const id = existingId || `p_local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const existing = store.players[id];
     const player: PlayerProfile = existing || {
@@ -1023,7 +1088,30 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
     const id = decodeURIComponent(pathname.replace('/api/players/', ''));
     const p = store.players[id];
     if (!p) return fail('Player not found.', 404);
-    return ok({ player: p });
+    const history = (store.gameResults || [])
+      .filter((r) => r.userId === id)
+      .slice(-25)
+      .reverse()
+      .map((r) => ({
+        id: r.resultId,
+        sessionId: r.sessionId,
+        playerId: r.userId,
+        playerName: r.username,
+        className: r.className,
+        mode: 'competitive',
+        gameType: 'iq-quiz',
+        categoryId: r.category,
+        difficulty: r.difficulty.toUpperCase(),
+        score: r.score,
+        correctCount: r.correctAnswers,
+        totalQuestions: r.totalQuestions,
+        accuracy: r.accuracy,
+        timeSpentSeconds: r.completionTime,
+        maxStreak: 0,
+        xpEarned: r.xpEarned,
+        createdAt: r.createdAt,
+      }));
+    return ok({ player: p, history });
   }
 
   if (pathname.endsWith('/theme') && pathname.startsWith('/api/players/') && method === 'POST') {
@@ -1460,6 +1548,362 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
       unlockedAchievements: [],
       player: updatedPlayer,
     });
+  }
+
+  // 15. Smart Game System (/api/game/*) fallback for static/offline hosts
+  if (pathname === '/api/game/config' && method === 'GET') {
+    const countsByDifficulty: Record<GameDifficultyId, number> = { easy: 0, moderate: 0, hard: 0, jee: 0 };
+    const countsByCategory: Record<string, number> = { all: SMART_QUESTION_BANK.length };
+    for (const q of SMART_QUESTION_BANK) {
+      countsByDifficulty[q.difficulty] += 1;
+      countsByCategory[q.category] = (countsByCategory[q.category] || 0) + 1;
+    }
+    return ok({
+      difficulties: GAME_DIFFICULTY_CONFIGS,
+      categories: GAME_CATEGORIES.map((c) => ({ ...c, questionCount: countsByCategory[c.id] || 0 })),
+      countsByDifficulty,
+      totalQuestions: SMART_QUESTION_BANK.length,
+    });
+  }
+
+  const buildLocalGameLeaderboard = (opts: {
+    view: GameLeaderboardView;
+    difficulty: string;
+    category: string;
+    search: string;
+    userId: string;
+  }) => {
+    const results = (store.gameResults || []).filter((r) => {
+      if (opts.difficulty !== 'all' && r.difficulty !== opts.difficulty) return false;
+      if (opts.category !== 'all' && r.category !== opts.category) return false;
+      return true;
+    });
+    let rankedAll: GameLeaderboardEntry[] = [];
+    if (opts.view === 'highest') {
+      const byUser = new Map<string, { best: LocalSmartGameResult; totalPoints: number; gamesPlayed: number }>();
+      for (const r of results) {
+        const cur = byUser.get(r.userId);
+        if (!cur) byUser.set(r.userId, { best: r, totalPoints: r.score, gamesPlayed: 1 });
+        else {
+          cur.totalPoints += r.score;
+          cur.gamesPlayed += 1;
+          if (
+            r.score > cur.best.score ||
+            (r.score === cur.best.score && r.accuracy > cur.best.accuracy) ||
+            (r.score === cur.best.score && r.accuracy === cur.best.accuracy && r.completionTime < cur.best.completionTime)
+          ) {
+            cur.best = r;
+          }
+        }
+      }
+      rankedAll = [...byUser.values()]
+        .sort((a, b) => b.best.score - a.best.score || b.best.accuracy - a.best.accuracy || a.best.completionTime - b.best.completionTime)
+        .map((x, idx) => ({
+          rank: idx + 1,
+          userId: x.best.userId,
+          username: x.best.username,
+          className: x.best.className,
+          title: x.best.title,
+          score: x.best.score,
+          bestScore: x.best.score,
+          totalPoints: x.totalPoints,
+          gamesPlayed: x.gamesPlayed,
+          accuracy: x.best.accuracy,
+          completionTime: x.best.completionTime,
+          difficulty: x.best.difficulty,
+          category: x.best.category,
+          createdAt: x.best.createdAt,
+        }));
+    } else {
+      const byUser = new Map<string, { latest: LocalSmartGameResult; totalPoints: number; bestScore: number; gamesPlayed: number; accSum: number; timeSum: number }>();
+      for (const r of results) {
+        const cur = byUser.get(r.userId);
+        if (!cur) {
+          byUser.set(r.userId, { latest: r, totalPoints: r.score, bestScore: r.score, gamesPlayed: 1, accSum: r.accuracy, timeSum: r.completionTime });
+        } else {
+          cur.totalPoints += r.score;
+          cur.bestScore = Math.max(cur.bestScore, r.score);
+          cur.gamesPlayed += 1;
+          cur.accSum += r.accuracy;
+          cur.timeSum += r.completionTime;
+          if (r.createdAt > cur.latest.createdAt) cur.latest = r;
+        }
+      }
+      rankedAll = [...byUser.values()]
+        .sort((a, b) => b.totalPoints - a.totalPoints || b.accSum / b.gamesPlayed - a.accSum / a.gamesPlayed || b.gamesPlayed - a.gamesPlayed)
+        .map((x, idx) => ({
+          rank: idx + 1,
+          userId: x.latest.userId,
+          username: x.latest.username,
+          className: x.latest.className,
+          title: x.latest.title,
+          score: x.totalPoints,
+          bestScore: x.bestScore,
+          totalPoints: x.totalPoints,
+          gamesPlayed: x.gamesPlayed,
+          accuracy: Math.round((x.accSum / x.gamesPlayed) * 10) / 10,
+          completionTime: Math.round(x.timeSum / x.gamesPlayed),
+          difficulty: x.latest.difficulty,
+          category: x.latest.category,
+          createdAt: x.latest.createdAt,
+        }));
+    }
+    const qSearch = opts.search.trim().toLowerCase();
+    return {
+      view: opts.view,
+      rankingMethodDescription:
+        opts.view === 'highest'
+          ? 'Ranked by each player’s single highest verified game score (ties broken by accuracy, then faster completion time).'
+          : 'Ranked by cumulative total points earned across all completed games (ties broken by average accuracy, then games played).',
+      totalPlayers: rankedAll.length,
+      top3: rankedAll.slice(0, 3),
+      entries: (qSearch ? rankedAll.filter((e) => e.username.toLowerCase().includes(qSearch)) : rankedAll).slice(0, 100),
+      currentUserEntry: opts.userId ? rankedAll.find((e) => e.userId === opts.userId) || null : null,
+    };
+  };
+
+  if (pathname === '/api/game/start' && method === 'POST') {
+    const userId = String(body.userId ?? '').trim();
+    if (!userId) return fail('Authentication required: please sign in to start a scored game.', 401);
+    const difficulty = (String(body.difficulty ?? 'easy').toLowerCase() in DIFFICULTY_MAP
+      ? String(body.difficulty ?? 'easy').toLowerCase()
+      : 'easy') as GameDifficultyId;
+    const category = String(body.category ?? 'all').trim() || 'all';
+    const questionCount = Math.max(5, Math.min(25, Math.round(Number(body.questionCount ?? 10))));
+    const rawLimit = Number(body.timeLimitSeconds ?? 0);
+    const timeLimitSeconds = rawLimit > 0 ? Math.max(30, Math.min(3600, Math.round(rawLimit))) : 0;
+
+    if (!store.players[userId]) {
+      store.players[userId] = {
+        id: userId,
+        name: String(body.username ?? 'Engineer'),
+        className: (String(body.className ?? 'Class 12') as ClassOption),
+        xp: 0,
+        level: 1,
+        title: 'Circuit Rookie',
+        streakBest: 0,
+        gamesPlayed: 0,
+        activeTheme: 'cyber-midnight',
+        unlockedThemes: ['cyber-midnight'],
+        achievements: [],
+        createdAt: new Date().toISOString(),
+      };
+    }
+
+    const selected = selectSmartGameQuestions({ difficulty, category, count: questionCount });
+    const sessionId = `gs_local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    store.gameSessions ??= {};
+    store.gameSessions[sessionId] = {
+      sessionId,
+      userId,
+      username: store.players[userId].name,
+      difficulty,
+      category,
+      questions: selected,
+      startedAt: Date.now(),
+      status: 'active',
+    };
+    writeStore(store);
+
+    const diffCfg = DIFFICULTY_MAP[difficulty];
+    return ok({
+      sessionId,
+      userId,
+      username: store.players[userId].name,
+      difficulty,
+      difficultyConfig: diffCfg,
+      category,
+      questionCount: selected.length,
+      marksPerCorrect: diffCfg.marksPerCorrect,
+      timeLimitSeconds,
+      startedAt: store.gameSessions[sessionId].startedAt,
+      questions: selected.map(({ correctIndex: _c, explanation: _e, ...rest }) => rest),
+    });
+  }
+
+  if (pathname === '/api/game/check' && method === 'POST') {
+    const sessionId = String(body.sessionId ?? '').trim();
+    const userId = String(body.userId ?? '').trim();
+    const questionId = String(body.questionId ?? '').trim();
+    const selectedIndex = Number(body.selectedIndex);
+    if (!userId) return fail('Authentication required.', 401);
+    store.gameSessions ??= {};
+    const session = store.gameSessions[sessionId];
+    if (session && session.userId !== userId) return fail('Session does not belong to current user.', 403);
+    const q = session?.questions.find((x) => x.id === questionId) || SMART_QUESTION_BANK.find((x) => x.id === questionId);
+    if (!q) return fail('Question not found.', 404);
+    const correct = selectedIndex === q.correctIndex;
+    return ok({ correct, correctIndex: q.correctIndex, explanation: q.explanation, pointsAwarded: correct ? q.marks : 0 });
+  }
+
+  if (pathname === '/api/game/submit' && method === 'POST') {
+    const sessionId = String(body.sessionId ?? '').trim();
+    const userId = String(body.userId ?? '').trim();
+    if (!userId) return fail('Authentication required: log in to submit your score.', 401);
+    store.gameSessions ??= {};
+    store.gameResults ??= [];
+    const session = store.gameSessions[sessionId];
+    if (!session) return fail('Game session not found.', 404);
+    if (session.userId !== userId) return fail('Forbidden: this game session belongs to a different player.', 403);
+    if (session.status !== 'active') return fail('Duplicate submission blocked: this game session has already been recorded.', 409);
+
+    const prevHTop3 = buildLocalGameLeaderboard({ view: 'highest', difficulty: 'all', category: 'all', search: '', userId }).top3.map((e) => e.userId);
+    const prevOTop3 = buildLocalGameLeaderboard({ view: 'overall', difficulty: 'all', category: 'all', search: '', userId }).top3.map((e) => e.userId);
+
+    const answers = Array.isArray(body.answers) ? (body.answers as Array<{ questionId?: string; selectedIndex?: number | null }>) : [];
+    const answerMap = new Map<string, number>();
+    for (const a of answers) {
+      if (a && typeof a.questionId === 'string') {
+        const idx = a.selectedIndex === null || a.selectedIndex === undefined ? -1 : Number(a.selectedIndex);
+        answerMap.set(a.questionId, Number.isInteger(idx) ? idx : -1);
+      }
+    }
+
+    const diffCfg = DIFFICULTY_MAP[session.difficulty] || DIFFICULTY_MAP.easy;
+    const marksPerCorrect = diffCfg.marksPerCorrect;
+    let correctAnswers = 0;
+    let incorrectAnswers = 0;
+    let unanswered = 0;
+    let streak = 0;
+    let maxStreak = 0;
+    const details: GameEvaluatedItem[] = [];
+
+    for (const q of session.questions) {
+      const chosen = answerMap.has(q.id) ? answerMap.get(q.id)! : -1;
+      const isUnanswered = chosen < 0 || chosen >= q.options.length;
+      const isCorrect = !isUnanswered && chosen === q.correctIndex;
+      if (isUnanswered) {
+        unanswered += 1;
+        streak = 0;
+      } else if (isCorrect) {
+        correctAnswers += 1;
+        streak += 1;
+        maxStreak = Math.max(maxStreak, streak);
+      } else {
+        incorrectAnswers += 1;
+        streak = 0;
+      }
+      details.push({
+        questionId: q.id,
+        topic: q.topic,
+        category: q.category,
+        question: q.question,
+        options: q.options,
+        selectedIndex: chosen,
+        correctIndex: q.correctIndex,
+        isCorrect,
+        isUnanswered,
+        pointsAwarded: isCorrect ? marksPerCorrect : 0,
+        explanation: q.explanation,
+      });
+    }
+
+    session.status = 'completed';
+    const totalQuestions = Math.max(1, session.questions.length);
+    const score = correctAnswers * marksPerCorrect;
+    const maxPossibleScore = totalQuestions * marksPerCorrect;
+    const accuracy = Math.round((correctAnswers / totalQuestions) * 1000) / 10;
+    const completionTime = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
+    const xpEarned = Math.max(10, Math.round(score * 0.5) + (accuracy === 100 ? 40 : 0));
+    const nowIso = new Date().toISOString();
+    const resultId = `gr_local_${Date.now()}`;
+
+    const p = store.players[userId];
+    let leveledUp = false;
+    if (p) {
+      const prevLvl = p.level;
+      p.xp += xpEarned;
+      p.gamesPlayed += 1;
+      p.streakBest = Math.max(p.streakBest, maxStreak);
+      const lvl = computeLevelFromXp(p.xp);
+      p.level = lvl.level;
+      p.title = lvl.title;
+      p.unlockedThemes = getUnlockedThemesForLevel(lvl.level);
+      leveledUp = lvl.level > prevLvl;
+    }
+
+    const record: LocalSmartGameResult = {
+      resultId,
+      sessionId,
+      userId,
+      username: p?.name || session.username,
+      className: p?.className || 'Class 12',
+      title: p?.title || 'Circuit Rookie',
+      score,
+      correctAnswers,
+      incorrectAnswers,
+      unanswered,
+      totalQuestions,
+      accuracy,
+      completionTime,
+      difficulty: session.difficulty,
+      category: session.category,
+      xpEarned,
+      createdAt: nowIso,
+      payload: null as unknown as GameResultPayload,
+    };
+    store.gameResults.push(record);
+
+    const hBoard = buildLocalGameLeaderboard({ view: 'highest', difficulty: 'all', category: 'all', search: '', userId });
+    const oBoard = buildLocalGameLeaderboard({ view: 'overall', difficulty: 'all', category: 'all', search: '', userId });
+    const hRank = hBoard.currentUserEntry?.rank ?? null;
+    const oRank = oBoard.currentUserEntry?.rank ?? null;
+
+    const payload: GameResultPayload = {
+      resultId,
+      sessionId,
+      userId,
+      username: record.username,
+      score,
+      maxPossibleScore,
+      marksPerCorrect,
+      correctAnswers,
+      incorrectAnswers,
+      unanswered,
+      totalQuestions,
+      accuracy,
+      completionTime,
+      difficulty: session.difficulty,
+      category: session.category,
+      highestRank: hRank,
+      overallRank: oRank,
+      totalRankedPlayers: hBoard.totalPlayers,
+      enteredTop3Highest: hRank !== null && hRank <= 3 && (!prevHTop3.includes(userId) || hRank === 1),
+      enteredTop3Overall: oRank !== null && oRank <= 3 && (!prevOTop3.includes(userId) || oRank === 1),
+      top3Highest: hBoard.top3,
+      top3Overall: oBoard.top3,
+      currentUserHighestEntry: hBoard.currentUserEntry,
+      currentUserOverallEntry: oBoard.currentUserEntry,
+      xpEarned,
+      leveledUp,
+      unlockedAchievements: [],
+      player: p ? { ...p } : null,
+      details,
+      createdAt: nowIso,
+    };
+    record.payload = payload;
+    writeStore(store);
+    return ok(payload);
+  }
+
+  if (pathname.startsWith('/api/game/result/') && method === 'GET') {
+    const sid = decodeURIComponent(pathname.replace('/api/game/result/', '')).trim();
+    const found = (store.gameResults || []).find((r) => r.sessionId === sid);
+    if (!found || !found.payload) return fail('Saved game result not found.', 404);
+    return ok(found.payload);
+  }
+
+  if (pathname === '/api/game/leaderboard' && method === 'GET') {
+    const view: GameLeaderboardView = params.get('view') === 'overall' ? 'overall' : 'highest';
+    return ok(
+      buildLocalGameLeaderboard({
+        view,
+        difficulty: params.get('difficulty') || 'all',
+        category: params.get('category') || 'all',
+        search: params.get('search') || '',
+        userId: params.get('userId') || '',
+      })
+    );
   }
 
   return { handled: false, ok: false, status: 404, data: null, error: null };

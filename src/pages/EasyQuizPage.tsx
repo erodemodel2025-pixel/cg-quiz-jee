@@ -229,6 +229,8 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
           body: JSON.stringify({
             sessionId,
             userId: player.id,
+            username: player.name,
+            className: player.className,
             answers: answersPayload,
           }),
         });
@@ -324,6 +326,8 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: player.id,
+            username: player.name,
+            className: player.className,
             difficulty: chosenDiff,
             category,
             questionCount,

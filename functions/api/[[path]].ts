@@ -6,13 +6,27 @@ import {
   COMPONENT_CARDS,
   LOGIC_PUZZLES,
 } from '../../shared/minigameData.ts';
-import { computeExamLevel, getDailyChallengeForDate } from '../../shared/progression.ts';
+import {
+  ACHIEVEMENTS,
+  computeExamLevel,
+  computeLevelFromXp,
+  getDailyChallengeForDate,
+  getUnlockedThemesForLevel,
+} from '../../shared/progression.ts';
 import { QUESTION_BANK } from '../../shared/questionBank.ts';
 import {
   getModeScoringRules,
   selectBalancedQuizQuestions,
 } from '../../shared/quizPipeline.ts';
+import {
+  DIFFICULTY_MAP,
+  GAME_CATEGORIES,
+  GAME_DIFFICULTY_CONFIGS,
+  SMART_QUESTION_BANK,
+  selectSmartGameQuestions,
+} from '../../shared/smartQuestionBank.ts';
 import type {
+  ClassOption,
   ExamAnswerItem,
   ExamDifficulty,
   ExamEvaluatedDetail,
@@ -21,6 +35,14 @@ import type {
   ExamResultSummary,
   ExamSettings,
   ExamUserAnswer,
+  GameDifficultyId,
+  GameEvaluatedItem,
+  GameLeaderboardEntry,
+  GameLeaderboardView,
+  GameResultPayload,
+  PixelThemeId,
+  PlayerProfile,
+  SmartGameQuestion,
   SpeedClass,
   TopicStat,
 } from '../../shared/types.ts';
@@ -33,8 +55,261 @@ interface PagesContext {
 const ALL_EXAM_QUESTIONS = getAllBuiltinExamQuestions();
 const EXAM_QUESTION_MAP = new Map(ALL_EXAM_QUESTIONS.map((q) => [q.id, q]));
 const LEGACY_QUESTION_MAP = new Map(QUESTION_BANK.map((q) => [q.id, q]));
+const SMART_QUESTION_MAP = new Map(SMART_QUESTION_BANK.map((q) => [q.id, q]));
 const CODE_PUZZLE_MAP = new Map(CODE_PUZZLES.map((p) => [p.id, p]));
 const LOGIC_PUZZLE_MAP = new Map(LOGIC_PUZZLES.map((p) => [p.id, p]));
+
+const VALID_GAME_DIFFICULTIES = new Set<GameDifficultyId>(['easy', 'moderate', 'hard', 'jee']);
+
+interface EdgeGameSession {
+  sessionId: string;
+  userId: string;
+  username: string;
+  difficulty: GameDifficultyId;
+  category: string;
+  questions: SmartGameQuestion[];
+  startedAt: number;
+  expiresAt: number;
+  status: 'active' | 'completed';
+  isTest: boolean;
+}
+
+interface EdgeGameResultRecord {
+  resultId: string;
+  sessionId: string;
+  userId: string;
+  username: string;
+  className: string;
+  title: string;
+  score: number;
+  correctAnswers: number;
+  incorrectAnswers: number;
+  unanswered: number;
+  totalQuestions: number;
+  accuracy: number;
+  completionTime: number;
+  difficulty: GameDifficultyId;
+  category: string;
+  xpEarned: number;
+  details: GameEvaluatedItem[];
+  isTest: boolean;
+  createdAt: string;
+}
+
+const EDGE_PLAYERS = new Map<string, PlayerProfile>();
+const EDGE_PLAYER_BY_NAME = new Map<string, string>();
+const EDGE_SESSIONS = new Map<string, EdgeGameSession>();
+const EDGE_GAME_RESULTS: EdgeGameResultRecord[] = [];
+const EDGE_RESULT_BY_SESSION = new Map<string, GameResultPayload>();
+
+function normalizeGameDifficulty(raw: unknown): GameDifficultyId | null {
+  const val = String(raw ?? '').trim().toLowerCase();
+  return VALID_GAME_DIFFICULTIES.has(val as GameDifficultyId) ? (val as GameDifficultyId) : null;
+}
+
+function sanitizeSmartQuestion(q: SmartGameQuestion) {
+  const { correctIndex: _c, explanation: _e, ...rest } = q;
+  return rest;
+}
+
+function getOrHydrateEdgePlayer(
+  userId: string,
+  fallbackName?: string,
+  fallbackClass?: string
+): PlayerProfile | null {
+  const existing = EDGE_PLAYERS.get(userId);
+  if (existing) return existing;
+  if (!userId || (!userId.startsWith('p_') && !fallbackName)) return null;
+  const name = (fallbackName || 'Engineer').trim() || 'Engineer';
+  const className = (fallbackClass || 'Class 12').trim() as ClassOption;
+  const hydrated: PlayerProfile = {
+    id: userId,
+    name,
+    className,
+    xp: 0,
+    level: 1,
+    title: 'Circuit Rookie',
+    streakBest: 0,
+    gamesPlayed: 0,
+    activeTheme: 'cyber-midnight',
+    unlockedThemes: ['cyber-midnight'],
+    achievements: [],
+    createdAt: new Date().toISOString(),
+  };
+  EDGE_PLAYERS.set(userId, hydrated);
+  EDGE_PLAYER_BY_NAME.set(name.toLowerCase(), userId);
+  return hydrated;
+}
+
+function updateEdgePlayerProgression(params: {
+  player: PlayerProfile;
+  xpEarned: number;
+  maxStreak: number;
+  newAchievements: string[];
+}) {
+  const p = params.player;
+  const prevLevel = p.level;
+  const unlockedNow: string[] = [];
+  let bonusXp = 0;
+
+  for (const achId of params.newAchievements) {
+    if (!p.achievements.includes(achId)) {
+      p.achievements.push(achId);
+      unlockedNow.push(achId);
+      const def = ACHIEVEMENTS.find((a) => a.id === achId);
+      if (def) bonusXp += def.xpBonus;
+    }
+  }
+
+  p.xp += params.xpEarned + bonusXp;
+  p.gamesPlayed += 1;
+  p.streakBest = Math.max(p.streakBest, params.maxStreak);
+  const lvl = computeLevelFromXp(p.xp);
+  p.level = lvl.level;
+  p.title = lvl.title;
+  p.unlockedThemes = getUnlockedThemesForLevel(lvl.level);
+  EDGE_PLAYERS.set(p.id, p);
+
+  return {
+    player: { ...p },
+    leveledUp: lvl.level > prevLevel,
+    unlockedAchievements: unlockedNow,
+  };
+}
+
+function queryEdgeGameLeaderboard(params: {
+  view: GameLeaderboardView;
+  difficulty?: string;
+  category?: string;
+  search?: string;
+  userId?: string;
+  includeTest?: boolean;
+}) {
+  const view: GameLeaderboardView = params.view === 'overall' ? 'overall' : 'highest';
+  const difficulty = (params.difficulty || 'all').toLowerCase();
+  const category = (params.category || 'all').toLowerCase();
+  const search = (params.search || '').trim().toLowerCase();
+  const userId = (params.userId || '').trim();
+
+  const filtered = EDGE_GAME_RESULTS.filter((r) => {
+    if (!params.includeTest && r.isTest) return false;
+    if (difficulty !== 'all' && VALID_GAME_DIFFICULTIES.has(difficulty as GameDifficultyId) && r.difficulty !== difficulty) {
+      return false;
+    }
+    if (category !== 'all' && r.category !== category) return false;
+    return true;
+  });
+
+  let rankedAll: GameLeaderboardEntry[] = [];
+
+  if (view === 'highest') {
+    const byUser = new Map<string, { best: EdgeGameResultRecord; totalPoints: number; gamesPlayed: number }>();
+    for (const r of filtered) {
+      const existing = byUser.get(r.userId);
+      if (!existing) {
+        byUser.set(r.userId, { best: r, totalPoints: r.score, gamesPlayed: 1 });
+      } else {
+        existing.totalPoints += r.score;
+        existing.gamesPlayed += 1;
+        const b = existing.best;
+        const isBetter =
+          r.score > b.score ||
+          (r.score === b.score && r.accuracy > b.accuracy) ||
+          (r.score === b.score && r.accuracy === b.accuracy && r.completionTime < b.completionTime);
+        if (isBetter) existing.best = r;
+      }
+    }
+
+    const sorted = [...byUser.values()].sort(
+      (a, b) =>
+        b.best.score - a.best.score ||
+        b.best.accuracy - a.best.accuracy ||
+        a.best.completionTime - b.best.completionTime ||
+        a.best.createdAt.localeCompare(b.best.createdAt)
+    );
+
+    rankedAll = sorted.map((item, idx) => ({
+      rank: idx + 1,
+      userId: item.best.userId,
+      username: item.best.username,
+      className: item.best.className,
+      title: item.best.title,
+      score: item.best.score,
+      bestScore: item.best.score,
+      totalPoints: item.totalPoints,
+      gamesPlayed: item.gamesPlayed,
+      accuracy: item.best.accuracy,
+      completionTime: item.best.completionTime,
+      difficulty: item.best.difficulty,
+      category: item.best.category,
+      createdAt: item.best.createdAt,
+    }));
+  } else {
+    const byUser = new Map<string, { latest: EdgeGameResultRecord; totalPoints: number; bestScore: number; gamesPlayed: number; accSum: number; timeSum: number }>();
+    for (const r of filtered) {
+      const existing = byUser.get(r.userId);
+      if (!existing) {
+        byUser.set(r.userId, {
+          latest: r,
+          totalPoints: r.score,
+          bestScore: r.score,
+          gamesPlayed: 1,
+          accSum: r.accuracy,
+          timeSum: r.completionTime,
+        });
+      } else {
+        existing.totalPoints += r.score;
+        existing.bestScore = Math.max(existing.bestScore, r.score);
+        existing.gamesPlayed += 1;
+        existing.accSum += r.accuracy;
+        existing.timeSum += r.completionTime;
+        if (r.createdAt > existing.latest.createdAt) existing.latest = r;
+      }
+    }
+
+    const sorted = [...byUser.values()].sort(
+      (a, b) =>
+        b.totalPoints - a.totalPoints ||
+        b.accSum / b.gamesPlayed - a.accSum / a.gamesPlayed ||
+        b.gamesPlayed - a.gamesPlayed ||
+        a.timeSum / a.gamesPlayed - b.timeSum / b.gamesPlayed
+    );
+
+    rankedAll = sorted.map((item, idx) => ({
+      rank: idx + 1,
+      userId: item.latest.userId,
+      username: item.latest.username,
+      className: item.latest.className,
+      title: item.latest.title,
+      score: item.totalPoints,
+      bestScore: item.bestScore,
+      totalPoints: item.totalPoints,
+      gamesPlayed: item.gamesPlayed,
+      accuracy: Math.round((item.accSum / item.gamesPlayed) * 10) / 10,
+      completionTime: Math.round(item.timeSum / item.gamesPlayed),
+      difficulty: item.latest.difficulty,
+      category: item.latest.category,
+      createdAt: item.latest.createdAt,
+    }));
+  }
+
+  const currentUserEntry = userId ? rankedAll.find((e) => e.userId === userId) || null : null;
+  const top3 = rankedAll.slice(0, 3);
+  const filteredEntries = search ? rankedAll.filter((e) => e.username.toLowerCase().includes(search)) : rankedAll;
+  const rankingMethodDescription =
+    view === 'highest'
+      ? 'Ranked by each player’s single highest verified game score (ties broken by accuracy, then faster completion time).'
+      : 'Ranked by cumulative total points earned across all completed games (ties broken by average accuracy, then games played).';
+
+  return {
+    view,
+    rankingMethodDescription,
+    totalPlayers: rankedAll.length,
+    top3,
+    entries: filteredEntries.slice(0, 100),
+    currentUserEntry,
+  };
+}
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -707,25 +982,525 @@ export async function onRequest(context: PagesContext): Promise<Response> {
       });
     }
 
+    // Smart Game System Routes (/api/game/*)
+    if (path === '/api/game/config' && method === 'GET') {
+      const countsByDifficulty: Record<GameDifficultyId, number> = {
+        easy: 0,
+        moderate: 0,
+        hard: 0,
+        jee: 0,
+      };
+      const countsByCategory: Record<string, number> = { all: SMART_QUESTION_BANK.length };
+      for (const q of SMART_QUESTION_BANK) {
+        countsByDifficulty[q.difficulty] += 1;
+        countsByCategory[q.category] = (countsByCategory[q.category] || 0) + 1;
+      }
+      return jsonResponse({
+        difficulties: GAME_DIFFICULTY_CONFIGS,
+        categories: GAME_CATEGORIES.map((c) => ({
+          ...c,
+          questionCount: countsByCategory[c.id] || 0,
+        })),
+        countsByDifficulty,
+        totalQuestions: SMART_QUESTION_BANK.length,
+      });
+    }
+
+    if (path === '/api/game/start' && method === 'POST') {
+      const body = await parseJsonBody(request);
+      const userId = String(body.userId ?? '').trim();
+      if (!userId) {
+        return jsonResponse(
+          { error: 'Authentication required: please sign in to start a scored game.' },
+          401
+        );
+      }
+
+      const player = getOrHydrateEdgePlayer(
+        userId,
+        typeof body.username === 'string' ? body.username : undefined,
+        typeof body.className === 'string' ? body.className : undefined
+      );
+      if (!player) {
+        return jsonResponse(
+          { error: 'Registered player account required before starting a scored game.' },
+          401
+        );
+      }
+
+      const difficulty = body.difficulty ? normalizeGameDifficulty(body.difficulty) : 'easy';
+      if (!difficulty) {
+        return jsonResponse(
+          { error: 'Invalid difficulty level. Must be easy, moderate, hard, or jee.' },
+          400
+        );
+      }
+
+      const category = String(body.category ?? 'all').trim() || 'all';
+      const questionCount = Math.max(5, Math.min(25, Math.round(Number(body.questionCount ?? 10))));
+      const rawLimit = Number(body.timeLimitSeconds ?? 0);
+      const timeLimitSeconds = rawLimit > 0 ? Math.max(30, Math.min(3600, Math.round(rawLimit))) : 0;
+      const isTest = body.isTest === true;
+
+      const selected = selectSmartGameQuestions({
+        difficulty,
+        category,
+        count: questionCount,
+      });
+
+      const startedAt = Date.now();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const sessionId = `gs_edge_${difficulty}_${category}_${startedAt}_${rand}`;
+      const expiresAt =
+        startedAt +
+        Math.max(timeLimitSeconds > 0 ? timeLimitSeconds * 1000 + 5 * 60 * 1000 : 2 * 60 * 60 * 1000, 60 * 60 * 1000);
+
+      EDGE_SESSIONS.set(sessionId, {
+        sessionId,
+        userId,
+        username: player.name,
+        difficulty,
+        category,
+        questions: selected,
+        startedAt,
+        expiresAt,
+        status: 'active',
+        isTest,
+      });
+
+      const diffCfg = DIFFICULTY_MAP[difficulty];
+      return jsonResponse({
+        sessionId,
+        userId,
+        username: player.name,
+        difficulty,
+        difficultyConfig: diffCfg,
+        category,
+        questionCount: selected.length,
+        marksPerCorrect: diffCfg.marksPerCorrect,
+        timeLimitSeconds,
+        startedAt,
+        questions: selected.map(sanitizeSmartQuestion),
+      });
+    }
+
+    if (path === '/api/game/check' && method === 'POST') {
+      const body = await parseJsonBody(request);
+      const sessionId = String(body.sessionId ?? '').trim();
+      const userId = String(body.userId ?? '').trim();
+      const questionId = String(body.questionId ?? '').trim();
+      const selectedIndex = Number(body.selectedIndex);
+
+      if (!userId) {
+        return jsonResponse({ error: 'Authentication required.' }, 401);
+      }
+
+      const session = EDGE_SESSIONS.get(sessionId);
+      if (session) {
+        if (session.userId !== userId) {
+          return jsonResponse({ error: 'Session does not belong to current user.' }, 403);
+        }
+        if (session.status !== 'active') {
+          return jsonResponse({ error: 'Game session is already completed.' }, 400);
+        }
+      }
+
+      const q =
+        session?.questions.find((item) => item.id === questionId) ||
+        SMART_QUESTION_MAP.get(questionId);
+      if (!q) {
+        return jsonResponse({ error: 'Question not found.' }, 404);
+      }
+
+      const isCorrect = selectedIndex === q.correctIndex;
+      return jsonResponse({
+        correct: isCorrect,
+        correctIndex: q.correctIndex,
+        explanation: q.explanation,
+        pointsAwarded: isCorrect ? q.marks : 0,
+      });
+    }
+
+    if (path === '/api/game/submit' && method === 'POST') {
+      const body = await parseJsonBody(request);
+      const sessionId = String(body.sessionId ?? '').trim();
+      const userId = String(body.userId ?? '').trim();
+      const submittedAnswers = Array.isArray(body.answers)
+        ? (body.answers as Array<{ questionId?: string; selectedIndex?: number | null }>)
+        : [];
+
+      if (!userId) {
+        return jsonResponse({ error: 'Authentication required: log in to submit your score.' }, 401);
+      }
+
+      const player = getOrHydrateEdgePlayer(
+        userId,
+        typeof body.username === 'string' ? body.username : undefined,
+        typeof body.className === 'string' ? body.className : undefined
+      );
+      if (!player) {
+        return jsonResponse({ error: 'Invalid or unregistered user account. Score rejected.' }, 401);
+      }
+      if (!sessionId) {
+        return jsonResponse({ error: 'sessionId is required.' }, 400);
+      }
+
+      if (EDGE_RESULT_BY_SESSION.has(sessionId)) {
+        return jsonResponse(
+          {
+            error: 'Duplicate submission blocked: this game session has already been recorded.',
+            alreadySubmitted: true,
+          },
+          409
+        );
+      }
+
+      let session = EDGE_SESSIONS.get(sessionId);
+      if (session) {
+        if (session.userId !== userId) {
+          return jsonResponse(
+            { error: 'Forbidden: this game session belongs to a different player.' },
+            403
+          );
+        }
+        if (session.status !== 'active') {
+          return jsonResponse(
+            {
+              error: 'Duplicate submission blocked: this game session has already been recorded.',
+              alreadySubmitted: true,
+            },
+            409
+          );
+        }
+      } else {
+        // Reconstruct across Cloudflare isolate hop from sessionId + submitted question IDs
+        const parts = sessionId.split('_');
+        const parsedDiff = normalizeGameDifficulty(parts[2]) || 'easy';
+        const parsedCat = parts[3] || 'all';
+        const parsedStart = Number(parts[4]) || Date.now() - 30000;
+        const reconstructedQuestions = submittedAnswers
+          .map((a) => (a && typeof a.questionId === 'string' ? SMART_QUESTION_MAP.get(a.questionId) : undefined))
+          .filter((q): q is SmartGameQuestion => Boolean(q));
+
+        if (reconstructedQuestions.length === 0) {
+          return jsonResponse({ error: 'Game session not found or expired.' }, 404);
+        }
+        session = {
+          sessionId,
+          userId,
+          username: player.name,
+          difficulty: parsedDiff,
+          category: parsedCat,
+          questions: reconstructedQuestions,
+          startedAt: parsedStart,
+          expiresAt: Date.now() + 3600000,
+          status: 'active',
+          isTest: false,
+        };
+      }
+
+      session.status = 'completed';
+      EDGE_SESSIONS.set(sessionId, session);
+
+      const includeTest = session.isTest;
+      const prevHighestTop3 = queryEdgeGameLeaderboard({ view: 'highest', includeTest }).top3.map((e) => e.userId);
+      const prevOverallTop3 = queryEdgeGameLeaderboard({ view: 'overall', includeTest }).top3.map((e) => e.userId);
+
+      const diffCfg = DIFFICULTY_MAP[session.difficulty] || DIFFICULTY_MAP.easy;
+      const marksPerCorrect = diffCfg.marksPerCorrect;
+
+      const answerMap = new Map<string, number>();
+      for (const a of submittedAnswers) {
+        if (a && typeof a.questionId === 'string') {
+          const idx = a.selectedIndex === null || a.selectedIndex === undefined ? -1 : Number(a.selectedIndex);
+          answerMap.set(a.questionId, Number.isInteger(idx) ? idx : -1);
+        }
+      }
+
+      let correctAnswers = 0;
+      let incorrectAnswers = 0;
+      let unanswered = 0;
+      let streak = 0;
+      let maxStreak = 0;
+      const details: GameEvaluatedItem[] = [];
+
+      for (const q of session.questions) {
+        const chosen = answerMap.has(q.id) ? answerMap.get(q.id)! : -1;
+        const isUnanswered = chosen < 0 || chosen >= q.options.length;
+        const isCorrect = !isUnanswered && chosen === q.correctIndex;
+
+        if (isUnanswered) {
+          unanswered += 1;
+          streak = 0;
+        } else if (isCorrect) {
+          correctAnswers += 1;
+          streak += 1;
+          maxStreak = Math.max(maxStreak, streak);
+        } else {
+          incorrectAnswers += 1;
+          streak = 0;
+        }
+
+        details.push({
+          questionId: q.id,
+          topic: q.topic,
+          category: q.category,
+          question: q.question,
+          options: q.options,
+          selectedIndex: chosen,
+          correctIndex: q.correctIndex,
+          isCorrect,
+          isUnanswered,
+          pointsAwarded: isCorrect ? marksPerCorrect : 0,
+          explanation: q.explanation,
+        });
+      }
+
+      const totalQuestions = Math.max(1, session.questions.length);
+      const score = correctAnswers * marksPerCorrect;
+      const maxPossibleScore = totalQuestions * marksPerCorrect;
+      const accuracy = Math.round((correctAnswers / totalQuestions) * 1000) / 10;
+      const completionTime = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
+      const xpEarned = Math.max(10, Math.round(score * 0.5) + (accuracy === 100 ? 40 : 0));
+      const nowIso = new Date().toISOString();
+      const resultId = `gr_edge_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+      const achs = ['first_run', 'competitor'];
+      if (maxStreak >= 5) achs.push('streak_master');
+      if (accuracy === 100 && totalQuestions >= 5) achs.push('perfect_run');
+      if (accuracy >= 80 && session.difficulty === 'easy') achs.push('easy_scholar');
+
+      const progression = updateEdgePlayerProgression({
+        player,
+        xpEarned,
+        maxStreak,
+        newAchievements: achs,
+      });
+
+      EDGE_GAME_RESULTS.push({
+        resultId,
+        sessionId,
+        userId,
+        username: progression.player.name,
+        className: progression.player.className,
+        title: progression.player.title,
+        score,
+        correctAnswers,
+        incorrectAnswers,
+        unanswered,
+        totalQuestions,
+        accuracy,
+        completionTime,
+        difficulty: session.difficulty,
+        category: session.category,
+        xpEarned,
+        details,
+        isTest: session.isTest,
+        createdAt: nowIso,
+      });
+
+      const highestBoard = queryEdgeGameLeaderboard({ view: 'highest', userId, includeTest });
+      const overallBoard = queryEdgeGameLeaderboard({ view: 'overall', userId, includeTest });
+      const highestRank = highestBoard.currentUserEntry?.rank ?? null;
+      const overallRank = overallBoard.currentUserEntry?.rank ?? null;
+
+      const enteredTop3Highest =
+        highestRank !== null &&
+        highestRank <= 3 &&
+        (!prevHighestTop3.includes(userId) || highestRank === 1);
+      const enteredTop3Overall =
+        overallRank !== null &&
+        overallRank <= 3 &&
+        (!prevOverallTop3.includes(userId) || overallRank === 1);
+
+      const payload: GameResultPayload = {
+        resultId,
+        sessionId,
+        userId,
+        username: progression.player.name,
+        score,
+        maxPossibleScore,
+        marksPerCorrect,
+        correctAnswers,
+        incorrectAnswers,
+        unanswered,
+        totalQuestions,
+        accuracy,
+        completionTime,
+        difficulty: session.difficulty,
+        category: session.category,
+        highestRank,
+        overallRank,
+        totalRankedPlayers: highestBoard.totalPlayers,
+        enteredTop3Highest,
+        enteredTop3Overall,
+        top3Highest: highestBoard.top3,
+        top3Overall: overallBoard.top3,
+        currentUserHighestEntry: highestBoard.currentUserEntry,
+        currentUserOverallEntry: overallBoard.currentUserEntry,
+        xpEarned,
+        leveledUp: progression.leveledUp,
+        unlockedAchievements: progression.unlockedAchievements,
+        player: progression.player,
+        details,
+        createdAt: nowIso,
+      };
+
+      EDGE_RESULT_BY_SESSION.set(sessionId, payload);
+      return jsonResponse(payload);
+    }
+
+    if (path.startsWith('/api/game/result/') && method === 'GET') {
+      const sessionId = decodeURIComponent(path.replace('/api/game/result/', '')).trim();
+      const saved = EDGE_RESULT_BY_SESSION.get(sessionId);
+      if (!saved) {
+        return jsonResponse({ error: 'Saved game result not found.' }, 404);
+      }
+      return jsonResponse(saved);
+    }
+
+    if (path === '/api/game/leaderboard' && method === 'GET') {
+      const view: GameLeaderboardView =
+        url.searchParams.get('view') === 'overall' ? 'overall' : 'highest';
+      const difficulty = url.searchParams.get('difficulty') ?? 'all';
+      const category = url.searchParams.get('category') ?? 'all';
+      const search = url.searchParams.get('search') ?? '';
+      const userId = url.searchParams.get('userId') ?? '';
+      return jsonResponse(
+        queryEdgeGameLeaderboard({
+          view,
+          difficulty,
+          category,
+          search,
+          userId,
+        })
+      );
+    }
+
     if (path === '/api/players/register' && method === 'POST') {
       const body = await parseJsonBody(request);
+      const rawName = String(body.name ?? '').trim();
+      const className = (String(body.className ?? 'Class 12').trim() || 'Class 12') as ClassOption;
+      const existingId = body.existingId ? String(body.existingId).trim() : null;
+
+      if (rawName.length < 2 || rawName.length > 40) {
+        return jsonResponse({ error: 'Player name must be between 2 and 40 characters.' }, 400);
+      }
+
+      const existingIdByName = EDGE_PLAYER_BY_NAME.get(rawName.toLowerCase());
+      if (existingIdByName) {
+        const existingPlayer = EDGE_PLAYERS.get(existingIdByName);
+        if (existingPlayer) {
+          if (existingId && existingPlayer.id === existingId) {
+            return jsonResponse({ player: existingPlayer, migrated: true });
+          }
+          if (existingPlayer.className === className) {
+            return jsonResponse({ player: existingPlayer, signedInExisting: true });
+          }
+          return jsonResponse(
+            {
+              error:
+                'That handle is already registered in a different class. Choose a unique handle or select its matching class to sign back in.',
+            },
+            409
+          );
+        }
+      }
+
+      if (existingId && EDGE_PLAYERS.has(existingId)) {
+        return jsonResponse({ player: EDGE_PLAYERS.get(existingId), migrated: true });
+      }
+
       const now = new Date().toISOString();
+      const id = existingId || `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const created: PlayerProfile = {
+        id,
+        name: rawName,
+        className,
+        xp: 0,
+        level: 1,
+        title: 'Circuit Rookie',
+        streakBest: 0,
+        gamesPlayed: 0,
+        activeTheme: 'cyber-midnight',
+        unlockedThemes: ['cyber-midnight'],
+        achievements: [],
+        createdAt: now,
+      };
+      EDGE_PLAYERS.set(id, created);
+      EDGE_PLAYER_BY_NAME.set(rawName.toLowerCase(), id);
+
+      return jsonResponse({ player: created, migrated: false }, 201);
+    }
+
+    if (path.endsWith('/theme') && path.startsWith('/api/players/') && method === 'POST') {
+      const id = decodeURIComponent(path.split('/')[3] || '');
+      const body = await parseJsonBody(request);
+      const themeId = String(body.themeId ?? 'cyber-midnight') as PixelThemeId;
+      const player = EDGE_PLAYERS.get(id);
+      if (!player) return jsonResponse({ error: 'Player not found.' }, 404);
+      player.activeTheme = themeId;
+      EDGE_PLAYERS.set(id, player);
+      return jsonResponse({ player });
+    }
+
+    if (path.endsWith('/achievement') && path.startsWith('/api/players/') && method === 'POST') {
+      const id = decodeURIComponent(path.split('/')[3] || '');
+      const body = await parseJsonBody(request);
+      const achievementId = String(body.achievementId ?? '');
+      const player = EDGE_PLAYERS.get(id);
+      if (!player) return jsonResponse({ error: 'Player not found.' }, 404);
+      const had = player.achievements.includes(achievementId);
+      let xpBonus = 0;
+      if (!had && achievementId) {
+        player.achievements.push(achievementId);
+        const def = ACHIEVEMENTS.find((a) => a.id === achievementId);
+        if (def) {
+          xpBonus = def.xpBonus;
+          player.xp += xpBonus;
+          const lvl = computeLevelFromXp(player.xp);
+          player.level = lvl.level;
+          player.title = lvl.title;
+          player.unlockedThemes = getUnlockedThemesForLevel(lvl.level);
+        }
+        EDGE_PLAYERS.set(id, player);
+      }
+      return jsonResponse({ player, newlyUnlocked: !had, xpBonus });
+    }
+
+    if (path.startsWith('/api/players/') && method === 'GET') {
+      const id = decodeURIComponent(path.replace('/api/players/', '')).trim();
+      const player = EDGE_PLAYERS.get(id);
+      if (!player) {
+        return jsonResponse({ error: 'Player not found.' }, 404);
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      const history = EDGE_GAME_RESULTS.filter((r) => r.userId === id)
+        .slice(-25)
+        .reverse()
+        .map((r) => ({
+          id: r.resultId,
+          sessionId: r.sessionId,
+          playerId: r.userId,
+          playerName: r.username,
+          className: r.className,
+          mode: 'competitive',
+          gameType: 'iq-quiz',
+          categoryId: r.category,
+          difficulty: r.difficulty.toUpperCase(),
+          score: r.score,
+          correctCount: r.correctAnswers,
+          totalQuestions: r.totalQuestions,
+          accuracy: r.accuracy,
+          timeSpentSeconds: r.completionTime,
+          maxStreak: 0,
+          xpEarned: r.xpEarned,
+          createdAt: r.createdAt,
+        }));
       return jsonResponse({
-        player: {
-          id: String(body.existingId || `p_${Date.now()}`),
-          name: String(body.name || 'Engineer'),
-          className: String(body.className || 'Class 12'),
-          xp: 0,
-          level: 1,
-          title: 'Circuit Rookie',
-          streakBest: 0,
-          gamesPlayed: 0,
-          activeTheme: 'cyber-midnight',
-          unlockedThemes: ['cyber-midnight'],
-          achievements: [],
-          createdAt: now,
-        },
-        migrated: false,
+        player,
+        dailyChallenge: getDailyChallengeForDate(today, false),
+        history,
       });
     }
 
