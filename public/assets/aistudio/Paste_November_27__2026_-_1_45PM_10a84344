@@ -1,0 +1,2440 @@
+You are a senior game designer, frontend engineer, 3D web developer, UX designer, interaction designer, and educational-product designer.
+
+I want you to massively upgrade my existing CG-Quiz project.
+
+IMPORTANT:
+DO NOT rebuild the project from scratch.
+DO NOT remove existing working features.
+DO NOT change existing routes unnecessarily.
+DO NOT break existing data, navigation, authentication, leaderboard structure, or existing quiz functionality.
+
+Instead, inspect the entire existing project first and then perform a major upgrade while preserving everything that already works.
+
+The goal is to transform CG-Quiz from a normal quiz website into a highly interactive engineering/technology playground.
+
+The final experience should feel like:
+- a modern interactive engineering game
+- a technology playground
+- a mini-game hub
+- a simulator
+- a competitive challenge platform
+- a futuristic student learning platform
+
+It should NOT feel like a boring school quiz website.
+
+==================================================
+1. CORE DESIGN PHILOSOPHY
+==================================================
+
+The website should have three major types of experiences:
+
+A. QUIZZES
+B. REAL MINI-GAMES
+C. INTERACTIVE BUILDERS / SIMULATORS
+
+The biggest mistake to avoid:
+
+DO NOT make every mini-game another multiple-choice quiz.
+
+Mini-games must involve:
+- movement
+- timing
+- dragging
+- building
+- balancing
+- reaction
+- memory
+- strategy
+- physics
+- navigation
+- assembling
+- optimization
+- experimentation
+
+The user should feel like they are PLAYING rather than answering questions.
+
+Every game should have:
+- clear objective
+- very simple controls
+- visible progress
+- score
+- timer where appropriate
+- feedback
+- success/failure state
+- replay button
+- difficulty
+- personal best
+- leaderboard integration where appropriate
+
+==================================================
+2. OVERALL UI/UX
+==================================================
+
+Upgrade the entire interface.
+
+Use a premium modern visual language.
+
+Avoid:
+- generic AI-looking gradients
+- excessive glowing effects
+- clutter
+- tiny buttons
+- confusing controls
+- giant empty spaces
+- overly complicated dashboards
+
+Use:
+- clean cards
+- smooth animations
+- rounded corners
+- strong typography
+- responsive layouts
+- subtle depth
+- polished hover states
+- clear icons
+- simple labels
+- strong visual hierarchy
+
+The interface must work extremely well on:
+- desktop
+- laptop
+- tablet
+- mobile
+
+Mobile should not simply be a squeezed desktop layout.
+
+Create responsive controls specifically for mobile.
+
+Use icons + text instead of icons alone whenever an action could be confusing.
+
+==================================================
+3. MAIN NAVIGATION
+==================================================
+
+Improve the navigation structure.
+
+Suggested structure:
+
+HOME
+QUIZ
+MINI GAMES
+BUILDERS
+SIMULATORS
+LEADERBOARD
+PROFILE
+
+Do not add unnecessary navigation items.
+
+On the homepage show:
+
+- Daily Challenge
+- Featured Mini Game
+- Continue Playing
+- Current Rank
+- Personal Best
+- Recent Achievements
+- Featured Builder
+- Global Leaderboard preview
+
+Make the homepage feel alive.
+
+Example:
+
+"Today's Engineering Challenge"
+
+"Your Rank: #42"
+
+"3 friends are playing now"
+
+"New Mini Game Unlocked"
+
+Use subtle live-status indicators where technically possible.
+
+==================================================
+4. QUIZ SYSTEM UPGRADE
+==================================================
+
+Keep the existing quiz system.
+
+But make quizzes significantly more interactive.
+
+Add:
+
+- streak system
+- combo multiplier
+- XP
+- levels
+- achievements
+- speed bonus
+- accuracy bonus
+- difficulty levels
+- personal best
+- category statistics
+- question animations
+- progress animation
+- instant feedback
+- end-of-round performance summary
+
+Do NOT make every question animation excessive.
+
+Add different question modes where possible:
+
+NORMAL
+SPEED ROUND
+STREAK MODE
+TIME ATTACK
+BOSS ROUND
+DAILY CHALLENGE
+
+For example:
+
+Speed Round:
+10 questions
+30 seconds
+faster answers = more points
+
+Boss Round:
+hard questions
+higher reward
+special UI
+
+Streak:
+keep answering correctly
+multiplier increases
+
+==================================================
+5. LIVE LEADERBOARD
+==================================================
+
+The leaderboard must feel genuinely live.
+
+Do NOT create a fake static leaderboard.
+
+Use the existing backend/database/authentication infrastructure if present.
+
+If Supabase or another backend already exists, integrate with that.
+
+Leaderboard should update without requiring a full page refresh where technically possible.
+
+Implement realtime subscriptions if supported by the existing backend.
+
+Leaderboard categories:
+
+GLOBAL
+DAILY
+WEEKLY
+MONTHLY
+FRIENDS
+GAME-SPECIFIC
+
+Show:
+
+Rank
+Avatar
+Username
+XP
+Score
+Games Played
+Win Rate
+Current Streak
+
+Add movement animations when rank changes.
+
+Example:
+
+#12 → #9 ↑3
+
+#8 → #11 ↓3
+
+Use subtle animations.
+
+When a user beats their personal best:
+
+"NEW PERSONAL BEST!"
+
+When a user enters the top 10:
+
+"TOP 10!"
+
+When a user reaches #1:
+
+"YOU'RE #1!"
+
+Do NOT fabricate real players or fake live statistics.
+
+If there are no real players, clearly show the actual available leaderboard state.
+
+Create proper backend-safe score validation where possible so users cannot simply edit the frontend score.
+
+==================================================
+6. XP / LEVEL SYSTEM
+==================================================
+
+Introduce a simple progression system.
+
+Example:
+
+Level 1 → Rookie Engineer
+Level 5 → Junior Engineer
+Level 10 → Builder
+Level 20 → Advanced Engineer
+Level 30 → Engineering Pro
+Level 50 → Master Engineer
+
+XP can come from:
+
+- quizzes
+- mini-games
+- builders
+- challenges
+- achievements
+- daily streaks
+
+Avoid excessive grinding.
+
+Make progression feel rewarding.
+
+Add an XP progress bar.
+
+==================================================
+7. ACHIEVEMENT SYSTEM
+==================================================
+
+Create achievements such as:
+
+FIRST QUIZ
+FIRST MINI GAME
+FIRST BUILD
+100 QUESTIONS
+10 WIN STREAK
+NEW PERSONAL BEST
+TOP 100
+TOP 50
+TOP 10
+TOP 3
+FIRST PLACE
+PERFECT SCORE
+SPEED DEMON
+MASTER BUILDER
+TEST DRIVER
+CAR ENGINEER
+PHONE DESIGNER
+
+Show achievement unlock animations.
+
+Store achievements persistently.
+
+==================================================
+8. MINI-GAMES — VERY IMPORTANT
+==================================================
+
+The mini-games MUST NOT just be quizzes with different names.
+
+Create actual interactive games.
+
+The games should be simple enough for students to understand in seconds.
+
+Each mini-game needs:
+
+TITLE
+SHORT DESCRIPTION
+HOW TO PLAY
+CONTROLS
+OBJECTIVE
+SCORE
+TIMER if needed
+PAUSE
+RESTART
+RESULT SCREEN
+PERSONAL BEST
+
+==================================================
+9. MINI GAME #1 — REACTION TEST
+==================================================
+
+Create a reaction game.
+
+Screen displays:
+
+"WAIT..."
+
+Then suddenly:
+
+"CLICK!"
+
+Player must click/tap as quickly as possible.
+
+Measure reaction time in milliseconds.
+
+Show:
+
+Reaction Time:
+287 ms
+
+Rating:
+FAST
+
+Allow 5 rounds.
+
+Calculate average reaction.
+
+Leaderboard:
+
+Fastest Reaction
+Best Average
+
+Controls:
+ONE BIG BUTTON
+
+No complicated controls.
+
+==================================================
+10. MINI GAME #2 — CIRCUIT CONNECT
+==================================================
+
+Create an interactive circuit-building game.
+
+The player sees:
+
+Battery
+Wire
+Switch
+Bulb
+Motor
+Resistor
+
+The player must drag components and connect them correctly.
+
+This is NOT multiple-choice.
+
+The circuit should visually respond.
+
+Correct circuit:
+
+bulb turns on
+
+Incorrect circuit:
+
+show a small safe error message
+
+Example:
+
+"Open circuit"
+
+or
+
+"Connection missing"
+
+Include several levels.
+
+Level 1:
+battery + bulb
+
+Level 2:
+switch
+
+Level 3:
+motor
+
+Level 4:
+series circuit
+
+Level 5:
+more complex circuit
+
+Controls should be drag-and-drop.
+
+==================================================
+11. MINI GAME #3 — ENGINEERING BALANCE
+==================================================
+
+Create a physics-style balance game.
+
+Player gets different blocks.
+
+They must place blocks on a platform without making it collapse.
+
+Use simple physics.
+
+Controls:
+drag and drop.
+
+Score based on:
+
+stability
+speed
+weight efficiency
+
+Make the physics understandable.
+
+==================================================
+12. MINI GAME #4 — ROBOT CONTROL
+==================================================
+
+Create a simple top-down robot navigation game.
+
+Player controls a small robot.
+
+Goal:
+reach the target.
+
+Avoid obstacles.
+
+Controls:
+
+Arrow keys / WASD
+Mobile:
+large directional buttons
+
+Do NOT create complicated controls.
+
+Add levels.
+
+Example:
+
+Level 1:
+reach the charging station
+
+Level 2:
+avoid barriers
+
+Level 3:
+collect 3 batteries
+
+Level 4:
+navigate a maze
+
+Level 5:
+time challenge
+
+==================================================
+13. MINI GAME #5 — MEMORY CIRCUIT
+==================================================
+
+Create a visual memory game.
+
+Show a sequence of lights.
+
+Example:
+
+RED → BLUE → GREEN
+
+Then hide them.
+
+Player repeats the sequence.
+
+Increase difficulty.
+
+This is a memory/interaction game, NOT a quiz.
+
+Controls:
+large colored buttons.
+
+==================================================
+14. MINI GAME #6 — TECH ASSEMBLY
+==================================================
+
+Create a drag-and-drop assembly game.
+
+Example:
+
+assemble a simple computer.
+
+Components:
+
+CPU
+RAM
+SSD
+GPU
+motherboard
+cooler
+
+Player must place components in correct locations.
+
+Use visual snapping.
+
+When correctly placed:
+
+component locks into place.
+
+Wrong placement:
+
+small shake animation.
+
+At completion:
+
+"BUILD COMPLETE"
+
+Show build time.
+
+Leaderboard can track fastest completion.
+
+==================================================
+15. MINI GAME #7 — DRONE LANDING
+==================================================
+
+Create a simple drone landing game.
+
+Player controls drone altitude and horizontal movement.
+
+Goal:
+
+land safely inside a landing zone.
+
+Add:
+
+wind
+obstacles
+fuel/battery
+
+Controls must be extremely simple.
+
+Desktop:
+Arrow keys
+
+Mobile:
+large left/right/up/down buttons
+
+Add difficulty levels.
+
+==================================================
+16. MINI GAME #8 — BRIDGE BUILDER
+==================================================
+
+Create a simple bridge-building game.
+
+Player receives limited structural pieces.
+
+Build a bridge between two platforms.
+
+Then press:
+
+TEST BRIDGE
+
+A small vehicle crosses it.
+
+If stable:
+
+SUCCESS
+
+If it fails:
+
+show a simple structural failure animation.
+
+Do not use dangerous or destructive visuals.
+
+Focus on engineering simulation.
+
+==================================================
+17. MINI GAME #9 — GEAR MACHINE
+==================================================
+
+Create an interactive gear puzzle.
+
+Player receives gears.
+
+Drag them into positions.
+
+Goal:
+
+transfer rotational motion from the input gear to the output gear.
+
+Show gears rotating.
+
+Multiple levels.
+
+Make the controls simple.
+
+==================================================
+18. MINI GAME #10 — SORT THE CIRCUIT
+==================================================
+
+Create a fast drag-and-drop sorting game.
+
+Components appear randomly.
+
+Player must sort:
+
+POWER
+CONTROL
+OUTPUT
+SENSORS
+
+into correct zones.
+
+Timer-based.
+
+This is a physical interaction game, not a quiz.
+
+==================================================
+19. MINI GAME #11 — ROCKET BALANCE
+==================================================
+
+Create a simple rocket stability game.
+
+Player adjusts thrust.
+
+Keep the rocket inside a safe flight corridor.
+
+Use:
+
+LEFT
+RIGHT
+BOOST
+
+only.
+
+Do not make controls complicated.
+
+Track:
+
+Altitude
+Fuel
+Stability
+Score
+
+==================================================
+20. MINI GAME #12 — ENGINEERING SPEED RUN
+==================================================
+
+Create a multi-stage challenge.
+
+Player completes:
+
+wire connection
+component placement
+switch activation
+target selection
+final machine start
+
+as quickly as possible.
+
+Show a timer.
+
+Leaderboard:
+
+Fastest Completion
+
+==================================================
+21. MINI GAME HUB
+==================================================
+
+Create a dedicated Mini Games page.
+
+Cards should show:
+
+thumbnail
+game title
+difficulty
+best score
+play button
+leaderboard button
+
+Categories:
+
+PHYSICS
+TECH
+ENGINEERING
+REACTION
+MEMORY
+BUILDING
+SIMULATION
+
+Add filters.
+
+Do NOT overwhelm the user.
+
+Use large Play buttons.
+
+==================================================
+22. CAR BUILDER — MAJOR UPGRADE
+==================================================
+
+The current car builder must be completely upgraded.
+
+IMPORTANT:
+
+The car builder MUST be a genuine interactive 3D environment.
+
+Do NOT make it a flat 2D car customization screen.
+
+Create a 3D scene using a suitable browser-compatible 3D technology such as:
+
+Three.js
+
+or an existing 3D engine already present in the project.
+
+Use optimized online/public 3D assets where licensing permits.
+
+DO NOT use copyrighted assets without permission.
+
+Prefer:
+- public-domain
+- Creative Commons with compatible license
+- official/open assets
+- procedural models
+- properly licensed GLTF/GLB models
+
+If an external asset cannot be loaded, create a procedural fallback.
+
+==================================================
+23. 3D CAR GARAGE
+==================================================
+
+When entering Car Builder:
+
+Show a 3D garage.
+
+Car in center.
+
+Camera can orbit around car.
+
+Controls:
+
+DRAG = ROTATE CAMERA
+SCROLL = ZOOM
+RESET CAMERA = BUTTON
+
+Do not require complicated mouse controls.
+
+On mobile:
+
+swipe = rotate
+pinch = zoom where supported
+
+Buttons:
+
+ROTATE
+ZOOM +
+ZOOM -
+RESET
+
+==================================================
+24. CAR CUSTOMIZATION
+==================================================
+
+Allow the player to customize:
+
+BODY COLOR
+WHEELS
+RIMS
+SPOILER
+FRONT BUMPER
+REAR BUMPER
+HEADLIGHTS
+TAILLIGHTS
+WINDOW TINT
+EXHAUST
+DECALS
+
+Do not overload the UI.
+
+Use tabs:
+
+BODY
+WHEELS
+PERFORMANCE
+LIGHTS
+DETAILS
+
+Each option should use simple visual cards.
+
+When selected, the 3D car updates immediately.
+
+==================================================
+25. CAR PERFORMANCE SYSTEM
+==================================================
+
+The car should have simulated performance.
+
+Stats:
+
+HORSEPOWER
+TORQUE
+WEIGHT
+TOP SPEED
+0–100 KM/H
+BRAKING
+HANDLING
+GRIP
+ACCELERATION
+
+Changing parts should affect the stats.
+
+Example:
+
+lighter wheels:
+weight decreases
+
+performance engine:
+horsepower increases
+
+larger spoiler:
+downforce increases
+
+Do not pretend these values are real-world certified measurements.
+
+Clearly label them as:
+
+"SIMULATION"
+
+==================================================
+26. WORKING CAR SIMULATION
+==================================================
+
+This is very important.
+
+The car should not just rotate in the garage.
+
+Add:
+
+TEST DRIVE
+
+button.
+
+When clicked:
+
+transition from garage into a simple 3D test track.
+
+Show the car moving.
+
+Use simple physics.
+
+The player should be able to:
+
+accelerate
+brake
+steer
+reverse
+
+Controls:
+
+W / ACCELERATE
+S / BRAKE / REVERSE
+A / LEFT
+D / RIGHT
+
+Also show large on-screen buttons:
+
+ACCELERATE
+BRAKE
+LEFT
+RIGHT
+
+Mobile controls must be extremely easy.
+
+Do not use complicated button layouts.
+
+==================================================
+27. TEST DRIVE MODE
+==================================================
+
+Create a proper test-drive environment.
+
+Track includes:
+
+straight road
+corners
+cones
+start line
+finish line
+speed markers
+braking zone
+
+HUD:
+
+SPEED
+RPM
+GEAR
+DISTANCE
+TIME
+
+Add:
+
+RESET CAR
+EXIT TEST DRIVE
+CAMERA
+
+Camera modes:
+
+CHASE
+HOOD
+FREE
+
+Keep camera switching simple.
+
+==================================================
+28. 0–100 KM/H TEST
+==================================================
+
+Add a dedicated:
+
+0–100 KM/H TEST
+
+The player starts from zero.
+
+Press:
+
+START
+
+Car accelerates.
+
+Measure:
+
+0–100 km/h time
+
+Show:
+
+0 km/h
+20
+40
+60
+80
+100
+
+When reaching 100:
+
+STOP TIMER
+
+Show result.
+
+Example:
+
+0–100 KM/H
+
+6.82 seconds
+
+Then compare against the player's personal best.
+
+Leaderboard:
+
+FASTEST 0–100
+
+Do not present simulated values as real-world vehicle specifications.
+
+==================================================
+29. TOP SPEED TEST
+==================================================
+
+Create a controlled top-speed simulation.
+
+Track:
+
+speed
+distance
+time
+
+Player attempts to reach maximum simulated speed.
+
+Add a clear safety-style simulation environment.
+
+Result:
+
+TOP SPEED
+TIME TO TOP SPEED
+
+Again, clearly label as simulation.
+
+==================================================
+30. BRAKING TEST
+==================================================
+
+Create:
+
+100–0 KM/H BRAKING TEST
+
+Player reaches 100 km/h.
+
+Then brakes.
+
+Measure:
+
+reaction
+braking distance
+total stopping distance
+
+Use a clean visual graph.
+
+This is a game simulation, not real-world driving advice.
+
+==================================================
+31. CORNERING TEST
+==================================================
+
+Create a simple handling test.
+
+Drive through marked corners.
+
+Score based on:
+
+speed
+line accuracy
+stability
+
+Show a racing line.
+
+Do not make the controls complicated.
+
+==================================================
+32. SLALOM TEST
+==================================================
+
+Create a cone slalom course.
+
+Player drives through cones.
+
+Score:
+
+time
+cones touched
+smoothness
+
+Leaderboard:
+
+FASTEST SLALOM
+
+==================================================
+33. DRAG RACE SIMULATION
+==================================================
+
+Create a simple straight-line drag race.
+
+Player car versus AI car.
+
+Show:
+
+reaction
+acceleration
+speed
+finish time
+
+AI should use the same general simulation framework.
+
+Add:
+
+EASY
+MEDIUM
+HARD
+
+==================================================
+34. CAR DYNO MODE
+==================================================
+
+Create a visual dynamometer simulation.
+
+Show:
+
+RPM
+POWER
+TORQUE
+
+Animated graph.
+
+When the player changes the engine setup:
+
+graph changes.
+
+Add:
+
+RUN DYNO
+
+button.
+
+Make the interface simple and visually satisfying.
+
+==================================================
+35. CAR GARAGE SAVE SYSTEM
+==================================================
+
+Allow users to save multiple cars.
+
+Example:
+
+MY CAR 01
+MY CAR 02
+TRACK BUILD
+SPEED BUILD
+BALANCED BUILD
+
+Save configuration persistently using the project's existing storage/database system.
+
+Do not overwrite existing user data.
+
+==================================================
+36. CAR BUILD SCORE
+==================================================
+
+Give each car a simulation score:
+
+SPEED
+HANDLING
+ACCELERATION
+BRAKING
+EFFICIENCY
+
+Overall:
+
+BUILD SCORE
+
+Make it clear that this is a game score.
+
+==================================================
+37. IPHONE / SMARTPHONE BUILDER — MAJOR UPGRADE
+==================================================
+
+Upgrade the existing iPhone-building experience.
+
+Do NOT make it a complicated technical simulator.
+
+The main objective is:
+
+EASY
+FUN
+VISUAL
+INTERACTIVE
+
+The user should understand the controls instantly.
+
+==================================================
+38. PHONE BUILDER UI
+==================================================
+
+Create a clean smartphone mockup in the center.
+
+Allow the user to customize:
+
+BODY
+COLOR
+DISPLAY
+CAMERA
+BUTTONS
+CASE
+WALLPAPER
+SPEAKERS
+PORT
+BACK DESIGN
+
+Use simple buttons.
+
+Example:
+
+COLOR
+CAMERA
+DISPLAY
+CASE
+WALLPAPER
+
+When clicked, open a simple option panel.
+
+Avoid nested menus.
+
+==================================================
+39. PHONE 3D MODEL
+==================================================
+
+If the existing phone builder supports 3D:
+
+Upgrade it to a real 3D phone model.
+
+Allow:
+
+rotate
+zoom
+front view
+back view
+side view
+
+Controls:
+
+ROTATE
+ZOOM
+RESET
+
+Mobile:
+swipe to rotate.
+
+==================================================
+40. PHONE INTERACTIVE COMPONENTS
+==================================================
+
+Make components respond visually.
+
+Examples:
+
+camera lens changes
+screen turns on
+buttons depress
+flash activates
+speaker animation
+charging indicator
+lock screen animation
+
+Make it feel like an actual interactive product prototype.
+
+==================================================
+41. PHONE PERFORMANCE SIMULATION
+==================================================
+
+Allow simple simulated specifications:
+
+PROCESSOR
+RAM
+STORAGE
+BATTERY
+DISPLAY
+CAMERA
+
+Changing specifications updates a visual "Performance Score".
+
+Do not make unsupported real-world claims.
+
+Use:
+
+SIMULATION SCORE
+
+rather than pretending the result is a real benchmark.
+
+==================================================
+42. PHONE TEST LAB
+==================================================
+
+Add a:
+
+PHONE TEST LAB
+
+Tests:
+
+BATTERY TEST
+DISPLAY TEST
+CAMERA TEST
+PERFORMANCE TEST
+THERMAL SIMULATION
+CHARGING TEST
+
+These should be interactive visual simulations.
+
+Example:
+
+Battery test:
+
+start test
+
+battery percentage gradually changes
+
+show simulated usage.
+
+==================================================
+43. PHONE DROP TEST — SIMULATION ONLY
+==================================================
+
+Create a playful physics simulation where a virtual phone falls onto different surfaces.
+
+Use:
+
+WOOD
+CARPET
+RUBBER
+
+Show simulated durability score.
+
+IMPORTANT:
+
+Clearly label:
+
+"GAME SIMULATION — NOT A REAL DROP-TEST RESULT"
+
+Do not present it as a real product durability test.
+
+==================================================
+44. PHONE DESIGN CHALLENGE
+==================================================
+
+Give users design challenges.
+
+Example:
+
+"Design a phone under a 200-point budget."
+
+Parts have game costs.
+
+Player must balance:
+
+camera
+battery
+performance
+display
+storage
+
+Then generate:
+
+DESIGN SCORE
+
+This is a strategy/building game, not a quiz.
+
+==================================================
+45. SIMPLE CONTROLS SYSTEM
+==================================================
+
+This is critical.
+
+Every interactive feature should use understandable controls.
+
+Avoid:
+
+"Click the tiny icon in the corner."
+
+Instead:
+
+large buttons.
+
+Examples:
+
+▶ PLAY
+⚙ SETTINGS
+↻ RESET
+🚗 TEST DRIVE
+🏁 START TEST
+🎨 CUSTOMIZE
+💾 SAVE BUILD
+← BACK
+
+Buttons should have:
+
+icon
+short text
+clear hover state
+
+==================================================
+46. UNIVERSAL GAME HUD
+==================================================
+
+Create a consistent game HUD.
+
+Top:
+
+GAME TITLE
+
+Center:
+
+GAMEPLAY
+
+Bottom:
+
+controls
+
+Corner:
+
+SCORE
+TIME
+BEST
+
+Use a pause button.
+
+Pause menu:
+
+RESUME
+RESTART
+SETTINGS
+EXIT
+
+==================================================
+47. CONTROLLER HELP
+==================================================
+
+Every game should show a tiny:
+
+HOW TO PLAY
+
+panel.
+
+Example:
+
+HOW TO PLAY
+
+W = Accelerate
+S = Brake
+A/D = Steer
+
+Mobile:
+
+Use the buttons below.
+
+The user should never have to guess what to do.
+
+==================================================
+48. GAME FEEDBACK
+==================================================
+
+Use satisfying feedback:
+
+correct:
+small success animation
+
+wrong:
+small shake
+
+new record:
+celebration
+
+level complete:
+progress animation
+
+achievement:
+badge animation
+
+Avoid excessive particle effects.
+
+Keep it premium.
+
+==================================================
+49. SOUND
+==================================================
+
+If the project already has audio support, add subtle sounds.
+
+Examples:
+
+button click
+success
+failure
+engine
+braking
+gear change
+completion
+
+Provide:
+
+SOUND ON/OFF
+
+Do not autoplay loud audio.
+
+==================================================
+50. PERFORMANCE
+==================================================
+
+This project must remain fast.
+
+3D can become expensive.
+
+Optimize aggressively.
+
+Use:
+
+lazy loading
+compressed textures
+optimized GLB/GLTF
+LOD where possible
+low-poly fallback
+asset caching
+code splitting where appropriate
+
+Do not load every 3D asset on the homepage.
+
+Load 3D assets only when the user opens the relevant builder/game.
+
+==================================================
+51. ONLINE ASSETS
+==================================================
+
+Where online assets are used:
+
+- only use assets with appropriate licenses
+- prefer GLTF/GLB
+- optimize before loading
+- provide fallback assets
+- do not rely on one fragile external URL
+- handle asset-loading errors gracefully
+
+If an external model fails:
+
+show:
+
+"Loading fallback model..."
+
+Then load a procedural/basic model.
+
+Never let the whole application crash because one asset failed.
+
+==================================================
+52. ERROR HANDLING
+==================================================
+
+Every game and builder must gracefully handle:
+
+asset loading failure
+network failure
+database failure
+missing user data
+invalid saved build
+mobile browser limitations
+
+Show friendly messages.
+
+Never expose raw technical errors to normal users.
+
+Instead of:
+
+"TypeError: undefined..."
+
+show:
+
+"Something went wrong. Try again."
+
+==================================================
+53. DATA ARCHITECTURE
+==================================================
+
+Do not destroy the existing data structure.
+
+Before changing data:
+
+inspect existing schemas.
+
+Preserve existing:
+
+localStorage keys
+database tables
+routes
+user records
+quiz questions
+scores
+profiles
+
+Add new tables/collections only if necessary.
+
+Potential entities:
+
+game_scores
+game_attempts
+car_builds
+phone_builds
+achievements
+user_stats
+
+Use proper user IDs.
+
+Never store sensitive information unnecessarily.
+
+==================================================
+54. ANTI-CHEAT
+==================================================
+
+Leaderboard scores must not simply trust frontend-submitted values where backend validation is possible.
+
+Validate:
+
+score
+duration
+game type
+user ID
+timestamp
+reasonable limits
+
+Prevent impossible scores such as:
+
+0-second completion
+impossible reaction time
+impossible speed
+
+Do not reveal anti-cheat implementation details to users.
+
+==================================================
+55. PERSONAL BEST SYSTEM
+==================================================
+
+Every game should remember:
+
+BEST SCORE
+BEST TIME
+BEST PERFORMANCE
+
+Show:
+
+CURRENT
+BEST
+GLOBAL RANK
+
+If there is no global data:
+
+show:
+
+"Leaderboard data unavailable"
+
+Do not fabricate rankings.
+
+==================================================
+56. DAILY CHALLENGES
+==================================================
+
+Create a daily challenge system.
+
+Each day:
+
+one quiz
+one mini-game
+one builder challenge
+
+Example:
+
+TODAY'S CHALLENGE
+
+Build a car with:
+Acceleration > 80
+Handling > 70
+Weight < 1500
+
+OR
+
+Complete Circuit Connect under 20 seconds.
+
+Reward:
+
+XP
+badge
+bonus points
+
+==================================================
+57. WEEKLY EVENTS
+==================================================
+
+Add weekly events.
+
+Examples:
+
+FASTEST DRIVER
+MASTER BUILDER
+CIRCUIT CHAMPION
+REACTION WEEK
+ENGINEERING SPEEDRUN
+
+Leaderboard resets weekly for the event.
+
+Keep historical records if backend supports it.
+
+==================================================
+58. PLAYER PROFILE
+==================================================
+
+Profile should show:
+
+LEVEL
+XP
+ACHIEVEMENTS
+QUIZ STATS
+MINI-GAME STATS
+BUILDS
+PERSONAL BESTS
+LEADERBOARD RANK
+
+Add:
+
+Favorite Game
+Favorite Build
+
+==================================================
+59. RESULTS SCREEN
+==================================================
+
+After every activity show a polished result screen.
+
+Example:
+
+CHALLENGE COMPLETE
+
+Score:
+8,420
+
+Time:
+32.8 sec
+
+Accuracy:
+94%
+
+Personal Best:
+YES
+
+Rank:
+#14
+
+XP:
++120
+
+Buttons:
+
+PLAY AGAIN
+NEXT CHALLENGE
+LEADERBOARD
+HOME
+
+==================================================
+60. ANIMATIONS
+==================================================
+
+Use tasteful animations:
+
+page transitions
+card hover
+button press
+score counting
+XP progress
+rank changes
+3D transitions
+achievement unlock
+
+Do not make every element bounce.
+
+Animations should improve usability.
+
+==================================================
+61. ACCESSIBILITY
+==================================================
+
+Make the system usable by as many students as possible.
+
+Include:
+
+large readable buttons
+keyboard support
+visible focus states
+good contrast
+reduced motion option
+text labels
+touch-friendly controls
+
+Never rely only on color to communicate information.
+
+==================================================
+62. MOBILE EXPERIENCE
+==================================================
+
+Mobile is extremely important.
+
+For mobile:
+
+large touch targets
+simple controls
+no tiny sliders
+no complicated drag precision
+responsive 3D
+orientation guidance where necessary
+
+For car test drive:
+
+LEFT
+RIGHT
+ACCELERATE
+BRAKE
+
+as large touch buttons.
+
+For builders:
+
+simple bottom toolbar.
+
+==================================================
+63. DESKTOP EXPERIENCE
+==================================================
+
+Desktop can provide more advanced controls.
+
+Keyboard shortcuts should work.
+
+Show keyboard hints.
+
+Example:
+
+WASD — Drive
+R — Reset
+C — Camera
+P — Pause
+
+==================================================
+64. LOADING STATES
+==================================================
+
+Create proper loading states.
+
+Examples:
+
+LOADING 3D CAR...
+LOADING TRACK...
+LOADING GAME...
+CONNECTING TO LEADERBOARD...
+
+Use skeletons or progress indicators.
+
+Never show a blank screen.
+
+==================================================
+65. EMPTY STATES
+==================================================
+
+Examples:
+
+No builds yet.
+
+"Build your first car."
+
+[BUILD CAR]
+
+No personal best yet.
+
+"Play a game to set your first record."
+
+==================================================
+66. SOUND / GRAPHICS SETTINGS
+==================================================
+
+Create simple settings:
+
+Sound:
+ON/OFF
+
+Music:
+ON/OFF
+
+Graphics:
+
+LOW
+MEDIUM
+HIGH
+
+Reduced Motion:
+
+ON/OFF
+
+This is especially important for low-end school devices.
+
+==================================================
+67. LOW-END DEVICE MODE
+==================================================
+
+Add an automatic performance mode.
+
+If device performance is weak:
+
+reduce:
+shadows
+particles
+texture quality
+3D complexity
+
+Keep gameplay functional.
+
+The project must run reasonably well on school computers/tablets.
+
+==================================================
+68. TABLET SUPPORT
+==================================================
+
+The project must work properly on tablets.
+
+Large touch controls.
+
+For car:
+
+left/right steering buttons
+accelerator
+brake
+
+For builders:
+
+large selection cards
+
+For mini-games:
+
+touch interactions.
+
+==================================================
+69. GAME DISCOVERY
+==================================================
+
+Create a recommendation section.
+
+Example:
+
+"Because you liked Circuit Connect"
+
+Recommended:
+
+Gear Machine
+Robot Control
+Bridge Builder
+
+Do this based on actual player activity where possible.
+
+Do not invent activity.
+
+==================================================
+70. FUN FACTS
+==================================================
+
+After completing activities, optionally show short engineering facts.
+
+Example:
+
+"Fun fact: Gears can change torque and rotational speed."
+
+Keep these short.
+
+Do not interrupt gameplay.
+
+==================================================
+71. PROGRESSION MAP
+==================================================
+
+Create an engineering progression map.
+
+ROOKIE
+↓
+EXPLORER
+↓
+BUILDER
+↓
+ENGINEER
+↓
+ADVANCED ENGINEER
+↓
+MASTER
+
+Unlock:
+
+mini-games
+builders
+challenges
+cosmetics
+
+based on XP.
+
+Do not lock essential learning content behind excessive grinding.
+
+==================================================
+72. MAIN GAME HUB
+==================================================
+
+Create a central:
+
+ENGINEERING PLAYGROUND
+
+with cards:
+
+QUIZ
+REACTION
+CIRCUITS
+ROBOT
+BRIDGE
+GEARS
+DRONE
+CAR BUILDER
+PHONE BUILDER
+TEST LAB
+
+Each card should have:
+
+icon
+short description
+difficulty
+PLAY button
+
+==================================================
+73. FINAL QUALITY REQUIREMENT
+==================================================
+
+The final project must feel like a REAL interactive product, not a collection of disconnected demos.
+
+Everything should share:
+
+same visual language
+same XP system
+same user profile
+same leaderboard
+same achievement system
+same controls
+same navigation
+same save system
+
+==================================================
+74. DO NOT OVERCOMPLICATE
+==================================================
+
+This is extremely important.
+
+Complexity should exist INSIDE the simulation.
+
+The CONTROLS must remain simple.
+
+For example:
+
+Car simulation may be advanced internally.
+
+But the user sees:
+
+ACCELERATE
+BRAKE
+LEFT
+RIGHT
+
+Phone builder may have many customization options.
+
+But the user sees:
+
+COLOR
+CAMERA
+DISPLAY
+CASE
+WALLPAPER
+
+Mini-game may have advanced logic.
+
+But the user understands the objective immediately.
+
+==================================================
+75. NO QUIZ DISGUISED AS A GAME
+==================================================
+
+Do not implement:
+
+"Click the correct answer to repair the engine."
+
+That is still a quiz.
+
+Instead:
+
+let the user actually connect components.
+
+Do not implement:
+
+"Choose the correct gear."
+
+Instead:
+
+let them drag gears into position.
+
+Do not implement:
+
+"Which road is correct?"
+
+Instead:
+
+let them drive the robot.
+
+The interaction itself must be the game.
+
+==================================================
+76. CAR BUILDER MUST FEEL SPECIAL
+==================================================
+
+The Car Builder should become one of the flagship features of CG-Quiz.
+
+Opening it should feel like entering a game.
+
+Flow:
+
+CAR GARAGE
+↓
+SELECT CAR
+↓
+CUSTOMIZE
+↓
+PERFORMANCE
+↓
+SAVE BUILD
+↓
+TEST DRIVE
+↓
+0–100 TEST
+↓
+BRAKING TEST
+↓
+SLALOM
+↓
+DRAG RACE
+↓
+RESULT
+↓
+LEADERBOARD
+
+==================================================
+77. PHONE BUILDER MUST FEEL SPECIAL
+==================================================
+
+Flow:
+
+PHONE LAB
+↓
+SELECT DESIGN
+↓
+CUSTOMIZE
+↓
+3D VIEW
+↓
+COMPONENTS
+↓
+PERFORMANCE
+↓
+TEST LAB
+↓
+DESIGN SCORE
+↓
+SAVE BUILD
+
+==================================================
+78. CODE QUALITY
+==================================================
+
+Write clean, modular code.
+
+Do not put everything into one enormous JavaScript file.
+
+Separate functionality logically.
+
+Example:
+
+games/
+car-builder/
+phone-builder/
+leaderboard/
+profile/
+quiz/
+
+Use reusable components where appropriate.
+
+Avoid duplicated code.
+
+Add comments for complex systems.
+
+Do not remove working code unnecessarily.
+
+==================================================
+79. IMPORTANT EXISTING PROJECT PRESERVATION
+==================================================
+
+Before making modifications:
+
+1. inspect all existing files
+2. inspect routes
+3. inspect package dependencies
+4. inspect database configuration
+5. inspect localStorage usage
+6. inspect existing quiz engine
+7. inspect leaderboard
+8. inspect existing car builder
+9. inspect existing phone builder
+10. inspect styling system
+
+Then create an upgrade plan internally.
+
+Implement the upgrade without destroying existing functionality.
+
+If a feature already exists:
+
+UPGRADE IT.
+
+Do not create a duplicate version unless necessary.
+
+==================================================
+80. TEST EVERYTHING
+==================================================
+
+After implementation test:
+
+Desktop
+Mobile
+Tablet
+
+Test:
+
+Quiz
+Mini games
+Leaderboard
+Profile
+Car Builder
+Test Drive
+0–100
+Braking
+Slalom
+Phone Builder
+Save/Load
+Achievements
+XP
+Navigation
+
+Check browser console for errors.
+
+Fix:
+
+404 errors
+broken imports
+undefined variables
+failed asset requests
+mobile overflow
+button issues
+database errors
+
+==================================================
+81. FINAL POLISH
+==================================================
+
+The final website should make a student say:
+
+"Whoa, I can actually play with this."
+
+Not:
+
+"This is just another quiz website."
+
+Prioritize:
+
+FUN
+INTERACTION
+SIMULATION
+DISCOVERY
+COMPETITION
+SIMPLE CONTROLS
+VISUAL QUALITY
+
+The most important flagship experiences are:
+
+1. LIVE LEADERBOARD
+2. REAL MINI-GAMES
+3. 3D CAR BUILDER
+4. CAR TEST DRIVE
+5. 0–100 KM/H SIMULATION
+6. CAR PERFORMANCE TESTS
+7. INTERACTIVE PHONE BUILDER
+8. ENGINEERING PLAYGROUND
+
+==================================================
+82. IMPLEMENTATION PRIORITY
+==================================================
+
+If the project is too large to implement everything at once, do NOT create half-finished fake features.
+
+Prioritize in this exact order:
+
+PHASE 1
+- inspect existing project
+- preserve existing functionality
+- upgrade navigation
+- mini-game framework
+- live leaderboard architecture
+
+PHASE 2
+- reaction game
+- circuit game
+- robot game
+- memory game
+- assembly game
+
+PHASE 3
+- 3D car garage
+- car customization
+- performance simulation
+- test drive
+
+PHASE 4
+- 0–100 test
+- braking test
+- slalom
+- drag race
+- dyno
+
+PHASE 5
+- phone builder upgrade
+- phone test lab
+
+PHASE 6
+- XP
+- achievements
+- daily challenges
+- profile
+- polish
+
+But whenever possible, implement the complete experience rather than leaving placeholder screens.
+
+==================================================
+83. CRITICAL RULE ABOUT PLACEHOLDERS
+==================================================
+
+Do NOT create fake buttons that say:
+
+"Coming Soon"
+
+for major requested features if they can reasonably be implemented.
+
+Do not create fake leaderboard numbers.
+
+Do not create fake online players.
+
+Do not create fake test results presented as real.
+
+Do not create fake external assets.
+
+If something cannot be implemented because a dependency is unavailable:
+
+build a functional fallback.
+
+==================================================
+84. FINAL RESULT
+==================================================
+
+Transform CG-Quiz into:
+
+"CG ENGINEERING PLAYGROUND"
+
+A platform where students can:
+
+PLAY
+BUILD
+DRIVE
+DESIGN
+EXPERIMENT
+COMPETE
+LEARN
+
+The user should be able to enter the site and immediately find something interactive to do.
+
+The experience should combine:
+
+quiz competition
+engineering mini-games
+3D building
+vehicle simulation
+phone design
+leaderboards
+achievements
+XP
+daily challenges
+personal records
+
+while keeping the interface extremely simple.
+
+DO NOT make the controls complicated just because the underlying technology is complicated.
+
+The underlying systems can be advanced.
+
+The USER EXPERIENCE must remain simple.
+
+MOST IMPORTANT:
+
+MAKE IT FUN.
+
+MAKE IT FAST.
+
+MAKE IT VISUAL.
+
+MAKE IT INTERACTIVE.
+
+MAKE THE MINI-GAMES ACTUALLY FEEL LIKE GAMES.
+
+MAKE THE CAR BUILDER FEEL LIKE A REAL 3D GARAGE.
+
+MAKE THE TEST DRIVE FEEL PLAYABLE.
+
+MAKE THE 0–100 TEST FEEL LIKE AN EVENT.
+
+MAKE THE PHONE BUILDER FEEL LIKE A PRODUCT DESIGN LAB.
+
+MAKE THE LEADERBOARD FEEL ALIVE.
+
+AND DO ALL OF THIS WITHOUT BREAKING THE EXISTING CG-QUIZ PROJECT.

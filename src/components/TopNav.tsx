@@ -38,10 +38,14 @@ export type AppRoute =
   | 'analytics'
   | 'admin';
 
+export type ArenaFilterTab = 'all' | 'minigames' | 'builders' | 'simulators';
+
 interface TopNavProps {
   route: AppRoute;
+  arenaFilter?: ArenaFilterTab;
   inActiveQuiz?: boolean;
   onNavigate: (route: AppRoute) => void;
+  onNavigateArena?: (filter: ArenaFilterTab) => void;
   onQuickPlay: () => void;
   onOpenRegister: () => void;
   onOpenHowToPlay: () => void;
@@ -49,7 +53,9 @@ interface TopNavProps {
 
 export const TopNav: React.FC<TopNavProps> = ({
   route,
+  arenaFilter = 'all',
   onNavigate,
+  onNavigateArena,
   onOpenRegister,
   onOpenHowToPlay,
 }) => {
@@ -61,6 +67,8 @@ export const TopNav: React.FC<TopNavProps> = ({
     toggleSound,
     musicEnabled,
     toggleMusic,
+    graphicsQuality,
+    setGraphicsQuality,
     isOnline,
     unlockAchievement,
     clearPlayerSession,
@@ -105,22 +113,79 @@ export const TopNav: React.FC<TopNavProps> = ({
     setMenuOpen(false);
   };
 
-  const navItems: Array<{ id: AppRoute; label: string }> = [
-    { id: 'home', label: 'Home' },
-    { id: 'easy-quizzes', label: 'Easy Quizzes' },
-    { id: 'arcade', label: 'Game Arena' },
-    { id: 'leaderboard', label: 'Leaderboard' },
-    { id: 'profile', label: 'My Profile' },
+  const navItems: Array<{
+    key: string;
+    label: string;
+    active: boolean;
+    onClick: () => void;
+  }> = [
+    {
+      key: 'home',
+      label: 'Home',
+      active: route === 'home',
+      onClick: () => handleNav('home'),
+    },
+    {
+      key: 'easy-quizzes',
+      label: 'Quiz',
+      active: route === 'easy-quizzes' || route === 'quiz-studio',
+      onClick: () => handleNav('easy-quizzes'),
+    },
+    {
+      key: 'minigames',
+      label: 'Mini Games',
+      active: route === 'arcade' && (arenaFilter === 'all' || arenaFilter === 'minigames'),
+      onClick: () => {
+        arcadeAudio.playSfx('click');
+        setMenuOpen(false);
+        if (onNavigateArena) onNavigateArena('minigames');
+        else onNavigate('arcade');
+      },
+    },
+    {
+      key: 'builders',
+      label: 'Builders',
+      active:
+        route === 'auto-engineer' ||
+        route === 'phone-designer' ||
+        (route === 'arcade' && arenaFilter === 'builders'),
+      onClick: () => {
+        arcadeAudio.playSfx('click');
+        setMenuOpen(false);
+        if (onNavigateArena) onNavigateArena('builders');
+        else onNavigate('auto-engineer');
+      },
+    },
+    {
+      key: 'simulators',
+      label: 'Simulators',
+      active: route === 'arcade' && arenaFilter === 'simulators',
+      onClick: () => {
+        arcadeAudio.playSfx('click');
+        setMenuOpen(false);
+        if (onNavigateArena) onNavigateArena('simulators');
+        else onNavigate('arcade');
+      },
+    },
+    {
+      key: 'leaderboard',
+      label: 'Leaderboard',
+      active: route === 'leaderboard',
+      onClick: () => handleNav('leaderboard'),
+    },
+    {
+      key: 'profile',
+      label: 'Profile',
+      active: route === 'profile',
+      onClick: () => handleNav('profile'),
+    },
   ];
 
-  const isArenaChild =
-    route === 'arcade' || route === 'auto-engineer' || route === 'phone-designer';
-
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--studio-border-strong)] bg-[var(--studio-nav-bg)] backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-[var(--studio-border-strong)] bg-[var(--studio-nav-bg)]">
       <div
         ref={menuWrapRef}
-        className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4 sm:gap-8 relative"
+        className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4 sm:gap-6 relative"
       >
         {/* Zone 1: Crisp Single-Line Brand Wordmark */}
         <button
@@ -143,30 +208,27 @@ export const TopNav: React.FC<TopNavProps> = ({
         </button>
 
         {/* Zone 2: Clean High-Contrast Single-Line Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-6" aria-label="Main navigation">
-          {navItems.map((item) => {
-            const active = item.id === 'arcade' ? isArenaChild : route === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleNav(item.id)}
-                className={`relative py-2 text-sm font-sora font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
-                  active
-                    ? 'text-[var(--studio-accent-text)]'
-                    : 'text-[var(--studio-text-secondary)] hover:text-[var(--studio-text)]'
-                }`}
-              >
-                <span>{item.label}</span>
-                {active && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-0 right-0 -bottom-[1px] h-[3px] rounded-full bg-[var(--studio-accent-text)]"
-                  />
-                )}
-              </button>
-            );
-          })}
+        <nav className="hidden lg:flex items-center gap-5" aria-label="Main navigation">
+          {navItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={item.onClick}
+              className={`relative py-2 text-sm font-sora font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
+                item.active
+                  ? 'text-[var(--studio-accent-text)]'
+                  : 'text-[var(--studio-text-secondary)] hover:text-[var(--studio-text)]'
+              }`}
+            >
+              <span>{item.label}</span>
+              {item.active && (
+                <span
+                  aria-hidden="true"
+                  className="absolute left-0 right-0 -bottom-[1px] h-[3px] rounded-full bg-[var(--studio-accent-text)]"
+                />
+              )}
+            </button>
+          ))}
         </nav>
 
         {/* Zone 3: Crisp Action & Menu Controls */}
@@ -333,6 +395,32 @@ export const TopNav: React.FC<TopNavProps> = ({
                   >
                     {item.icon}
                     <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Graphics Quality Selector */}
+            <div className="pt-2 border-t border-[var(--studio-border)] flex items-center justify-between gap-2 px-1">
+              <span className="font-mono-tech text-[11px] font-bold text-[var(--studio-text-muted)]">
+                3D Graphics
+              </span>
+              <div className="flex items-center gap-1">
+                {(['low', 'medium', 'high'] as const).map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => {
+                      arcadeAudio.playSfx('click');
+                      setGraphicsQuality(q);
+                    }}
+                    className={`px-2 py-1 rounded-lg font-mono-tech text-[10px] font-bold uppercase cursor-pointer border ${
+                      graphicsQuality === q
+                        ? 'bg-[#2563EB] border-[#60A5FA] text-white'
+                        : 'bg-[var(--studio-surface-2)] border-[var(--studio-border)] text-[var(--studio-text-secondary)]'
+                    }`}
+                  >
+                    {q === 'medium' ? 'MED' : q}
                   </button>
                 ))}
               </div>

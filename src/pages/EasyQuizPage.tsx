@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Atom,
   BookOpen,
+  Calendar,
   Car,
   CheckCircle2,
   Clock,
@@ -16,9 +17,12 @@ import {
   Sigma,
   SkipForward,
   Sparkles,
+  Swords,
+  Timer,
   Trophy,
   UserCheck,
   XCircle,
+  Zap,
 } from 'lucide-react';
 import {
   DIFFICULTY_MAP,
@@ -30,6 +34,7 @@ import type {
   GameDifficultyId,
   GameResultPayload,
   PublicSmartQuestion,
+  QuizPlayMode,
 } from '../../shared/types.ts';
 import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { GamePodiumResults } from '../components/quiz/GamePodiumResults.tsx';
@@ -51,9 +56,68 @@ const SETTINGS_STORAGE_KEY = 'cgquiz_smart_quiz_settings';
 interface PersistedSettings {
   difficulty: GameDifficultyId;
   category: GameCategoryId;
+  playMode: QuizPlayMode;
   questionCount: number;
   timeLimitSeconds: number;
 }
+
+const QUIZ_PLAY_MODES: Array<{
+  id: QuizPlayMode;
+  label: string;
+  badge: string;
+  description: string;
+  accent: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+}> = [
+  {
+    id: 'normal',
+    label: 'Normal',
+    badge: 'Standard',
+    description: 'Classic calibrated scoring (+10/+20/+30/+50 pts per correct answer).',
+    accent: '#3B82F6',
+    icon: Layers,
+  },
+  {
+    id: 'speed-round',
+    label: 'Speed Round',
+    badge: '10 Qs · 30s',
+    description: 'Ultra-fast 30-second sprint with pace bonus for rapid answers.',
+    accent: '#06B6D4',
+    icon: Zap,
+  },
+  {
+    id: 'streak-mode',
+    label: 'Streak Mode',
+    badge: 'Combo Bonus',
+    description: 'Chain consecutive correct answers to stack extra streak multiplier bonus.',
+    accent: '#F59E0B',
+    icon: Flame,
+  },
+  {
+    id: 'time-attack',
+    label: 'Time Attack',
+    badge: 'Beat Clock',
+    description: 'Beat the target solve clock for extra speed bonus + accuracy boost.',
+    accent: '#EC4899',
+    icon: Timer,
+  },
+  {
+    id: 'boss-round',
+    label: 'Boss Round',
+    badge: '15 Qs · Mastery',
+    description: 'Endurance engineering gauntlet with accuracy & streak rewards.',
+    accent: '#8B5CF6',
+    icon: Swords,
+  },
+  {
+    id: 'daily',
+    label: 'Daily Challenge',
+    badge: 'Daily Triple',
+    description: 'Counts toward Today’s 3-Part Daily Challenge + Daily XP reward.',
+    accent: '#10B981',
+    icon: Calendar,
+  },
+];
 
 function loadSavedSettings(): PersistedSettings {
   try {
@@ -61,13 +125,17 @@ function loadSavedSettings(): PersistedSettings {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<PersistedSettings>;
       if (parsed.difficulty && parsed.difficulty in DIFFICULTY_MAP) {
+        const validPlayMode: QuizPlayMode = QUIZ_PLAY_MODES.some((m) => m.id === parsed.playMode)
+          ? (parsed.playMode as QuizPlayMode)
+          : 'normal';
         return {
           difficulty: parsed.difficulty,
           category: (parsed.category || 'all') as GameCategoryId,
+          playMode: validPlayMode,
           questionCount: [5, 10, 15, 20].includes(Number(parsed.questionCount))
             ? Number(parsed.questionCount)
             : 10,
-          timeLimitSeconds: [0, 180, 300, 600].includes(Number(parsed.timeLimitSeconds))
+          timeLimitSeconds: [0, 30, 180, 300, 600].includes(Number(parsed.timeLimitSeconds))
             ? Number(parsed.timeLimitSeconds)
             : 300,
         };
@@ -79,6 +147,7 @@ function loadSavedSettings(): PersistedSettings {
   return {
     difficulty: 'easy',
     category: 'all',
+    playMode: 'normal',
     questionCount: 10,
     timeLimitSeconds: 300,
   };
@@ -123,6 +192,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
   const initialSettings = loadSavedSettings();
   const [difficulty, setDifficulty] = useState<GameDifficultyId>(initialSettings.difficulty);
   const [category, setCategory] = useState<GameCategoryId>(initialSettings.category);
+  const [playMode, setPlayMode] = useState<QuizPlayMode>(initialSettings.playMode);
   const [questionCount, setQuestionCount] = useState<number>(initialSettings.questionCount);
   const [timeLimitSeconds, setTimeLimitSeconds] = useState<number>(initialSettings.timeLimitSeconds);
 
@@ -147,6 +217,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
   const [correctSoFar, setCorrectSoFar] = useState(0);
   const [wrongSoFar, setWrongSoFar] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [maxStreak, setMaxStreak] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [resultPayload, setResultPayload] = useState<GameResultPayload | null>(null);
 
@@ -157,12 +228,32 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
     try {
       sessionStorage.setItem(
         SETTINGS_STORAGE_KEY,
-        JSON.stringify({ difficulty, category, questionCount, timeLimitSeconds })
+        JSON.stringify({ difficulty, category, playMode, questionCount, timeLimitSeconds })
       );
     } catch {
       // ignore
     }
-  }, [difficulty, category, questionCount, timeLimitSeconds]);
+  }, [difficulty, category, playMode, questionCount, timeLimitSeconds]);
+
+  const handleSelectPlayMode = (mode: QuizPlayMode) => {
+    arcadeAudio.playSfx('click');
+    setPlayMode(mode);
+    if (mode === 'speed-round') {
+      setQuestionCount(10);
+      setTimeLimitSeconds(30);
+    } else if (mode === 'time-attack') {
+      setQuestionCount(10);
+      setTimeLimitSeconds(180);
+    } else if (mode === 'boss-round') {
+      setQuestionCount(15);
+      setTimeLimitSeconds(300);
+    } else if (mode === 'daily') {
+      setQuestionCount(10);
+      setTimeLimitSeconds(300);
+    } else if (timeLimitSeconds === 30) {
+      setTimeLimitSeconds(300);
+    }
+  };
 
   // Restore saved result on browser refresh without ever re-submitting!
   useEffect(() => {
@@ -183,7 +274,6 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
     } catch {
       // ignore
     }
-    // Run once on initial mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -231,6 +321,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
             userId: player.id,
             username: player.name,
             className: player.className,
+            playMode,
             answers: answersPayload,
           }),
         });
@@ -282,7 +373,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
         setStage('playing');
       }
     },
-    [player, questions, reportError, sessionId, triggerCelebration, updateLocalPlayer]
+    [playMode, player, questions, reportError, sessionId, triggerCelebration, updateLocalPlayer]
   );
 
   // Countdown Timer when timeLimitSeconds > 0
@@ -330,6 +421,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
             className: player.className,
             difficulty: chosenDiff,
             category,
+            playMode,
             questionCount,
             timeLimitSeconds,
           }),
@@ -355,6 +447,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
         setCorrectSoFar(0);
         setWrongSoFar(0);
         setStreak(0);
+        setMaxStreak(0);
         setResultPayload(null);
         setSecondsLeft(res.data.timeLimitSeconds || timeLimitSeconds);
         setStage('playing');
@@ -367,7 +460,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
         setStarting(false);
       }
     },
-    [category, difficulty, onRequireRegister, player, questionCount, reportError, timeLimitSeconds]
+    [category, difficulty, onRequireRegister, playMode, player, questionCount, reportError, timeLimitSeconds]
   );
 
   const currentQuestion = questions[currentIndex] || null;
@@ -404,7 +497,11 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
         setInstantFeedback(res.data);
         if (res.data.correct) {
           setCorrectSoFar((c) => c + 1);
-          setStreak((s) => s + 1);
+          setStreak((s) => {
+            const ns = s + 1;
+            setMaxStreak((m) => Math.max(m, ns));
+            return ns;
+          });
           arcadeAudio.playSfx('correct');
         } else {
           setWrongSoFar((w) => w + 1);
@@ -469,7 +566,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
             Validating Score &amp; Updating Podium...
           </h2>
           <p className="text-sm text-[var(--studio-text-secondary)]">
-            Calculating official difficulty points on the server, saving your game record, and syncing live leaderboard standings.
+            Calculating official difficulty points, combo streaks, and speed bonuses on the server, then syncing live leaderboard standings.
           </p>
         </div>
       </div>
@@ -481,10 +578,17 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
      ============================================================ */
   if (stage === 'playing' && currentQuestion) {
     const activeDiff = DIFFICULTY_MAP[difficulty] || DIFFICULTY_MAP.easy;
+    const activeModeCfg = QUIZ_PLAY_MODES.find((m) => m.id === playMode) || QUIZ_PLAY_MODES[0];
     const progressPct = Math.round(
       ((currentIndex + (isAnswered ? 1 : 0)) / Math.max(1, questions.length)) * 100
     );
-    const livePoints = correctSoFar * activeDiff.marksPerCorrect;
+    const liveComboBonus =
+      playMode === 'normal'
+        ? 0
+        : Math.max(0, maxStreak - 1) * Math.round(activeDiff.marksPerCorrect * 0.4);
+    const livePoints = correctSoFar * activeDiff.marksPerCorrect + liveComboBonus;
+    const comboMult =
+      playMode === 'normal' ? '1.0x' : `${(1 + Math.min(4, streak) * 0.25).toFixed(2).replace(/\.00$/, '.0')}x`;
     const optionLetters = ['A', 'B', 'C', 'D'];
 
     return (
@@ -518,7 +622,8 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
               </button>
               <div>
                 <div className="font-mono-tech text-[11px] font-bold uppercase text-[var(--studio-accent-text)]">
-                  {activeDiff.name} (+{activeDiff.marksPerCorrect} pts/Q) · {currentQuestion.topic}
+                  {activeModeCfg.label} · {activeDiff.name} (+{activeDiff.marksPerCorrect} pts/Q) ·{' '}
+                  {currentQuestion.topic}
                 </div>
                 <div className="font-heading font-bold text-sm text-[var(--studio-text)]">
                   Question {currentIndex + 1} of {questions.length}
@@ -526,7 +631,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 font-mono-tech text-xs font-bold tabular-nums">
+            <div className="flex items-center gap-2 font-mono-tech text-xs font-bold tabular-nums flex-wrap">
               <span className="px-2.5 py-1 rounded-lg bg-[#2563EB] text-white">
                 {livePoints} PTS
               </span>
@@ -537,13 +642,13 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
                 ✕ {wrongSoFar}
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-[#D97706] text-white flex items-center gap-1">
-                <Flame size={13} /> {streak}
+                <Flame size={13} /> {streak} ({comboMult})
               </span>
               {timeLimitSeconds > 0 && (
                 <span
                   className={`px-2.5 py-1 rounded-lg flex items-center gap-1 ${
-                    secondsLeft <= 20
-                      ? 'bg-[#DC2626] text-white'
+                    secondsLeft <= 15
+                      ? 'bg-[#DC2626] text-white animate-pulse'
                       : 'studio-well text-[var(--studio-text)]'
                   }`}
                 >
@@ -620,7 +725,8 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
           {!isAnswered && (
             <div className="flex items-center justify-between gap-3 pt-1">
               <span className="font-mono-tech text-xs text-[var(--studio-text-muted)]">
-                Correct: +{activeDiff.marksPerCorrect} pts · Wrong: 0 · Skip: 0
+                Correct: +{activeDiff.marksPerCorrect} pts
+                {playMode !== 'normal' ? ' + Combo/Speed bonus' : ''} · Wrong: 0 · Skip: 0
               </span>
               <button
                 type="button"
@@ -642,6 +748,11 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
                     <>
                       <CheckCircle2 size={18} className="text-[var(--studio-emerald-text)]" /> Correct! +
                       {instantFeedback.pointsAwarded} pts
+                      {streak >= 2 && playMode !== 'normal' && (
+                        <span className="text-xs font-mono-tech text-[var(--studio-amber-text)]">
+                          · {streak}x Streak!
+                        </span>
+                      )}
                     </>
                   ) : (
                     <>
@@ -674,9 +785,10 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
   }
 
   /* ============================================================
-     STAGE 1: DIFFICULTY CARDS & GAME SETTINGS SELECTION SCREEN
+     STAGE 1: DIFFICULTY CARDS, PLAY MODES & GAME SETTINGS
      ============================================================ */
   const activeDifficultyCfg = DIFFICULTY_MAP[difficulty];
+  const activeModeCfg = QUIZ_PLAY_MODES.find((m) => m.id === playMode) || QUIZ_PLAY_MODES[0];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
@@ -684,13 +796,13 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
       <section className="studio-card p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-2 max-w-2xl">
           <div className="font-mono-tech text-xs font-bold uppercase tracking-wider text-[var(--studio-emerald-text)] flex items-center gap-2">
-            <Sparkles size={14} /> Smart Quiz Arena · 4 Calibrated Difficulty Tiers
+            <Sparkles size={14} /> Smart Quiz Arena · 4 Tiers &amp; 6 Play Modes
           </div>
           <h1 className="font-heading font-bold text-3xl sm:text-4xl text-[var(--studio-text)]">
             Choose Your Challenge &amp; Climb the Podium
           </h1>
           <p className="text-sm sm:text-base text-[var(--studio-text-secondary)]">
-            Select from Easy (+10 pts) up to JEE Aspirants (+50 pts), customize your category, question count, and timer, and record verified scores straight to the live Championship Podium.
+            Play Normal, Speed Round (30s blitz), Streak Mode, Time Attack, Boss Round, or Today’s Daily Challenge across Easy (+10 pts) up to JEE Aspirants (+50 pts).
           </p>
         </div>
 
@@ -726,7 +838,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
             className="studio-btn studio-btn-purple text-xs sm:text-sm"
           >
             <Car size={15} />
-            <span>3D Car &amp; iPhone Arena</span>
+            <span>12 Mini-Games &amp; 3D Builders</span>
           </button>
         </div>
       </section>
@@ -761,15 +873,75 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
         </div>
       )}
 
+      {/* QUIZ PLAY MODE SELECTOR */}
+      <section className="studio-card-solid p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-heading font-bold text-lg text-[var(--studio-text)]">
+            1. Choose Quiz Play Mode
+          </h2>
+          <span className="font-mono-tech text-xs font-bold text-[var(--studio-accent-text)]">
+            Active Mode: {activeModeCfg.label} ({activeModeCfg.badge})
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {QUIZ_PLAY_MODES.map((m) => {
+            const Icon = m.icon;
+            const active = playMode === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => handleSelectPlayMode(m.id)}
+                className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                  active
+                    ? 'bg-[var(--studio-surface-2)] ring-2 ring-[var(--studio-accent-text)]'
+                    : 'bg-[var(--studio-surface-2)] border-[var(--studio-border)] hover:border-[var(--studio-accent-text)]'
+                }`}
+                style={active ? { borderColor: m.accent } : undefined}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="w-8 h-8 rounded-lg text-white flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: m.accent }}
+                    >
+                      <Icon size={16} />
+                    </span>
+                    <span className="font-heading font-bold text-sm sm:text-base text-[var(--studio-text)]">
+                      {m.label}
+                    </span>
+                  </div>
+                  <span
+                    className="font-mono-tech text-[10px] font-bold px-2 py-0.5 rounded text-white"
+                    style={{ backgroundColor: m.accent }}
+                  >
+                    {m.badge}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--studio-text-secondary)] leading-relaxed">
+                  {m.description}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* GAME SETTINGS PANEL */}
       <section className="studio-card-solid p-5 sm:p-6 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--studio-border)] pb-3">
           <h2 className="font-heading font-bold text-lg text-[var(--studio-text)]">
-            Match Settings
+            2. Match Settings
           </h2>
           <span className="font-mono-tech text-xs font-bold text-[var(--studio-accent-text)]">
-            Selected: {activeDifficultyCfg.shortLabel} (+{activeDifficultyCfg.marksPerCorrect} pts/Q) · {questionCount} Qs ·{' '}
-            {timeLimitSeconds === 0 ? 'No Time Limit' : `${Math.round(timeLimitSeconds / 60)} Min Timer`}
+            Selected: {activeModeCfg.label} · {activeDifficultyCfg.shortLabel} (+{activeDifficultyCfg.marksPerCorrect}{' '}
+            pts/Q) · {questionCount} Qs ·{' '}
+            {timeLimitSeconds === 0
+              ? 'No Time Limit'
+              : timeLimitSeconds < 60
+                ? `${timeLimitSeconds}s Timer`
+                : `${Math.round(timeLimitSeconds / 60)} Min Timer`}
           </span>
         </div>
 
@@ -828,9 +1000,10 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
             <span className="block font-mono-tech text-xs font-bold uppercase text-[var(--studio-text-muted)]">
               Time Limit
             </span>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-1.5">
               {[
                 { sec: 0, label: 'None' },
+                { sec: 30, label: '30s' },
                 { sec: 180, label: '3m' },
                 { sec: 300, label: '5m' },
                 { sec: 600, label: '10m' },
@@ -842,7 +1015,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
                     arcadeAudio.playSfx('click');
                     setTimeLimitSeconds(t.sec);
                   }}
-                  className={`studio-btn text-xs py-2 min-h-[40px] ${
+                  className={`studio-btn text-xs py-2 min-h-[40px] px-1 ${
                     timeLimitSeconds === t.sec ? 'studio-btn-cyan' : 'studio-btn-ghost'
                   }`}
                 >
@@ -858,7 +1031,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-heading font-bold text-xl text-[var(--studio-text)]">
-            Select Difficulty Tier
+            3. Select Difficulty Tier
           </h2>
           <span className="font-mono-tech text-xs text-[var(--studio-text-secondary)]">
             Wrong: 0 pts · Unanswered: 0 pts
@@ -923,7 +1096,8 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
 
                 <div className="pt-3 border-t border-[var(--studio-border)] flex items-center justify-between gap-3">
                   <span className="font-mono-tech text-xs text-[var(--studio-text-muted)]">
-                    Max {questionCount * cfg.marksPerCorrect} pts ({questionCount} Qs)
+                    Base {questionCount * cfg.marksPerCorrect} pts
+                    {playMode !== 'normal' ? ' + Mode Bonus' : ''}
                   </span>
 
                   <button
@@ -949,7 +1123,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-heading font-bold text-lg text-[var(--studio-text)]">
-            Or Pick a Subject Focus ({activeDifficultyCfg.shortLabel} · +{activeDifficultyCfg.marksPerCorrect} pts/Q)
+            Or Pick a Subject Focus ({activeDifficultyCfg.shortLabel} · {activeModeCfg.label})
           </h2>
         </div>
 
@@ -995,7 +1169,7 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
               {starting
                 ? 'Creating Verified Session...'
                 : player
-                  ? `Start Game — ${activeDifficultyCfg.shortLabel} (${questionCount} Qs)`
+                  ? `Start ${activeModeCfg.label} — ${activeDifficultyCfg.shortLabel} (${questionCount} Qs)`
                   : 'Sign In & Start Game'}
             </span>
           </button>

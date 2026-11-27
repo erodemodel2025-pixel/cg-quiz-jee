@@ -7,11 +7,21 @@ import {
   LOGIC_PUZZLES,
 } from '../../shared/minigameData.ts';
 import {
+  computeQuizModeBonus,
+  isValidPlaygroundGameId,
+  TRACK_AND_LAB_GAME_IDS,
+  validatePlaygroundSubmission,
+} from '../../shared/playgroundValidation.ts';
+import {
   ACHIEVEMENTS,
   computeExamLevel,
   computeLevelFromXp,
   getDailyChallengeForDate,
+  getDailyTripleForDate,
+  getMiniGameDef,
   getUnlockedThemesForLevel,
+  getWeeklyEventForDate,
+  PLAYGROUND_MINIGAME_MAP,
 } from '../../shared/progression.ts';
 import { QUESTION_BANK } from '../../shared/questionBank.ts';
 import {
@@ -39,9 +49,14 @@ import type {
   GameEvaluatedItem,
   GameLeaderboardEntry,
   GameLeaderboardView,
+  GameModeId,
   GameResultPayload,
+  LeaderboardTimeframe,
   PixelThemeId,
   PlayerProfile,
+  PlaygroundLeaderboardEntry,
+  PlaygroundResultPayload,
+  QuizPlayMode,
   SmartGameQuestion,
   SpeedClass,
   TopicStat,
@@ -67,6 +82,7 @@ interface EdgeGameSession {
   username: string;
   difficulty: GameDifficultyId;
   category: string;
+  playMode?: QuizPlayMode;
   questions: SmartGameQuestion[];
   startedAt: number;
   expiresAt: number;
@@ -118,6 +134,141 @@ interface EdgeSimulatorResultRecord {
   createdAt: string;
 }
 const EDGE_SIMULATOR_RESULTS: EdgeSimulatorResultRecord[] = [];
+
+interface EdgePlaygroundSession {
+  sessionId: string;
+  userId: string;
+  gameId: string;
+  startedAt: number;
+  status: 'active' | 'completed';
+  isTest: boolean;
+}
+
+interface EdgePlaygroundResult {
+  resultId: string;
+  sessionId: string;
+  userId: string;
+  username: string;
+  className: string;
+  title: string;
+  level: number;
+  xp: number;
+  streakBest: number;
+  gameId: string;
+  score: number;
+  rawMetric: number;
+  completionTimeMs: number;
+  accuracy: number;
+  won: boolean;
+  xpEarned: number;
+  isTest: boolean;
+  createdAt: string;
+}
+
+const EDGE_PG_SESSIONS = new Map<string, EdgePlaygroundSession>();
+const EDGE_PG_RESULTS: EdgePlaygroundResult[] = [];
+const EDGE_DAILY_TRIPLE_CLAIMS = new Set<string>();
+
+function queryEdgePlaygroundLeaderboard(params: {
+  gameId: string;
+  timeframe: LeaderboardTimeframe;
+  search?: string;
+  userId?: string;
+  includeTest?: boolean;
+}) {
+  const gameId = params.gameId || 'all';
+  const timeframe = params.timeframe || 'global';
+  const search = (params.search || '').trim().toLowerCase();
+  const userId = (params.userId || '').trim();
+  const now = Date.now();
+  const todayPrefix = new Date(now).toISOString().slice(0, 10);
+  const weekCutoff = new Date(now - 7 * 86400000).toISOString();
+  const monthCutoff = new Date(now - 30 * 86400000).toISOString();
+
+  const filtered = EDGE_PG_RESULTS.filter((r) => {
+    if (!params.includeTest && r.isTest) return false;
+    if (gameId !== 'all' && r.gameId !== gameId) return false;
+    if (timeframe === 'daily' && !r.createdAt.startsWith(todayPrefix)) return false;
+    if (timeframe === 'weekly' && r.createdAt < weekCutoff) return false;
+    if (timeframe === 'monthly' && r.createdAt < monthCutoff) return false;
+    return true;
+  });
+
+  const byUser = new Map<
+    string,
+    {
+      latest: EdgePlaygroundResult;
+      bestScore: number;
+      totalPoints: number;
+      gamesPlayed: number;
+      wins: number;
+      accSum: number;
+      bestTimeMs: number;
+    }
+  >();
+
+  for (const r of filtered) {
+    const cur = byUser.get(r.userId);
+    if (!cur) {
+      byUser.set(r.userId, {
+        latest: r,
+        bestScore: r.score,
+        totalPoints: r.score,
+        gamesPlayed: 1,
+        wins: r.won ? 1 : 0,
+        accSum: r.accuracy,
+        bestTimeMs: r.completionTimeMs,
+      });
+    } else {
+      cur.bestScore = Math.max(cur.bestScore, r.score);
+      cur.totalPoints += r.score;
+      cur.gamesPlayed += 1;
+      cur.wins += r.won ? 1 : 0;
+      cur.accSum += r.accuracy;
+      cur.bestTimeMs = Math.min(cur.bestTimeMs, r.completionTimeMs);
+      if (r.createdAt > cur.latest.createdAt) cur.latest = r;
+    }
+  }
+
+  const rankedAll: PlaygroundLeaderboardEntry[] = [...byUser.values()]
+    .sort((a, b) =>
+      gameId === 'all'
+        ? b.totalPoints - a.totalPoints || b.bestScore - a.bestScore
+        : b.bestScore - a.bestScore || a.bestTimeMs - b.bestTimeMs
+    )
+    .map((x, idx) => ({
+      rank: idx + 1,
+      prevRank: null,
+      rankDelta: 0,
+      userId: x.latest.userId,
+      username: x.latest.username,
+      className: x.latest.className,
+      title: x.latest.title,
+      level: x.latest.level,
+      xp: x.latest.xp,
+      score: gameId === 'all' ? x.totalPoints : x.bestScore,
+      bestScore: x.bestScore,
+      totalPoints: x.totalPoints,
+      gamesPlayed: x.gamesPlayed,
+      winRate: Math.round((x.wins / x.gamesPlayed) * 1000) / 10,
+      streak: x.latest.streakBest,
+      accuracy: Math.round((x.accSum / x.gamesPlayed) * 10) / 10,
+      completionTimeMs: x.bestTimeMs,
+      gameId: x.latest.gameId,
+      createdAt: x.latest.createdAt,
+    }));
+
+  const currentUserEntry = userId ? rankedAll.find((e) => e.userId === userId) || null : null;
+  const entries = search ? rankedAll.filter((e) => e.username.toLowerCase().includes(search)) : rankedAll;
+  return {
+    gameId,
+    timeframe,
+    totalPlayers: rankedAll.length,
+    top3: rankedAll.slice(0, 3),
+    entries: entries.slice(0, 100),
+    currentUserEntry,
+  };
+}
 
 function normalizeGameDifficulty(raw: unknown): GameDifficultyId | null {
   const val = String(raw ?? '').trim().toLowerCase();
@@ -1054,9 +1205,10 @@ export async function onRequest(context: PagesContext): Promise<Response> {
       }
 
       const category = String(body.category ?? 'all').trim() || 'all';
+      const playMode = String(body.playMode ?? 'normal').trim() as QuizPlayMode;
       const questionCount = Math.max(5, Math.min(25, Math.round(Number(body.questionCount ?? 10))));
       const rawLimit = Number(body.timeLimitSeconds ?? 0);
-      const timeLimitSeconds = rawLimit > 0 ? Math.max(30, Math.min(3600, Math.round(rawLimit))) : 0;
+      const timeLimitSeconds = rawLimit > 0 ? Math.max(20, Math.min(3600, Math.round(rawLimit))) : 0;
       const isTest = body.isTest === true;
 
       const selected = selectSmartGameQuestions({
@@ -1078,6 +1230,7 @@ export async function onRequest(context: PagesContext): Promise<Response> {
         username: player.name,
         difficulty,
         category,
+        playMode,
         questions: selected,
         startedAt,
         expiresAt,
@@ -1093,6 +1246,7 @@ export async function onRequest(context: PagesContext): Promise<Response> {
         difficulty,
         difficultyConfig: diffCfg,
         category,
+        playMode,
         questionCount: selected.length,
         marksPerCorrect: diffCfg.marksPerCorrect,
         timeLimitSeconds,
@@ -1274,16 +1428,29 @@ export async function onRequest(context: PagesContext): Promise<Response> {
       }
 
       const totalQuestions = Math.max(1, session.questions.length);
-      const score = correctAnswers * marksPerCorrect;
-      const maxPossibleScore = totalQuestions * marksPerCorrect;
-      const accuracy = Math.round((correctAnswers / totalQuestions) * 1000) / 10;
+      const playMode = (session.playMode || String(body.playMode ?? 'normal')) as QuizPlayMode;
       const completionTime = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
+      const bonus = computeQuizModeBonus({
+        playMode,
+        correctAnswers,
+        totalQuestions,
+        maxStreak,
+        completionTime,
+        marksPerCorrect,
+      });
+      const score = bonus.totalScore;
+      const maxPossibleScore =
+        playMode === 'normal'
+          ? totalQuestions * marksPerCorrect
+          : totalQuestions * marksPerCorrect + Math.round(marksPerCorrect * 4);
+      const accuracy = Math.round((correctAnswers / totalQuestions) * 1000) / 10;
       const xpEarned = Math.max(10, Math.round(score * 0.5) + (accuracy === 100 ? 40 : 0));
       const nowIso = new Date().toISOString();
       const resultId = `gr_edge_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
-      const achs = ['first_run', 'competitor'];
+      const achs = ['first_run', 'first_quiz', 'competitor'];
       if (maxStreak >= 5) achs.push('streak_master');
+      if (maxStreak >= 10) achs.push('streak_10');
       if (accuracy === 100 && totalQuestions >= 5) achs.push('perfect_run');
       if (accuracy >= 80 && session.difficulty === 'easy') achs.push('easy_scholar');
 
@@ -1750,6 +1917,276 @@ export async function onRequest(context: PagesContext): Promise<Response> {
         top3: rankedAll.slice(0, 3),
         entries: entries.slice(0, 100),
         currentUserEntry,
+      });
+    }
+
+    if (path === '/api/playground/start' && method === 'POST') {
+      const body = await parseJsonBody(request);
+      const userId = String(body.userId ?? '').trim();
+      const gameId = String(body.gameId ?? '').trim();
+      if (!gameId || !isValidPlaygroundGameId(gameId)) {
+        return jsonResponse({ error: `Invalid mini-game identifier: ${gameId || 'missing'}` }, 400);
+      }
+      const player = userId
+        ? getOrHydrateEdgePlayer(
+            userId,
+            typeof body.username === 'string' ? body.username : undefined,
+            typeof body.className === 'string' ? body.className : undefined
+          )
+        : null;
+      const startedAt = Date.now();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const sessionId = `pgs_edge_${gameId}_${startedAt}_${rand}`;
+      const isTest = body.isTest === true;
+      EDGE_PG_SESSIONS.set(sessionId, {
+        sessionId,
+        userId: player?.id || 'guest_practice',
+        gameId,
+        startedAt,
+        status: 'active',
+        isTest,
+      });
+      const board = queryEdgePlaygroundLeaderboard({
+        gameId,
+        timeframe: 'global',
+        userId: player?.id,
+        includeTest: isTest,
+      });
+      return jsonResponse({
+        sessionId,
+        gameId,
+        startedAt,
+        personalBest: board.currentUserEntry?.bestScore ?? null,
+        globalRank: board.currentUserEntry?.rank ?? null,
+        totalPlayers: board.totalPlayers,
+      });
+    }
+
+    if (path === '/api/playground/submit' && method === 'POST') {
+      const body = await parseJsonBody(request);
+      const sessionId = String(body.sessionId ?? '').trim();
+      const userId = String(body.userId ?? '').trim();
+      const gameIdBody = String(body.gameId ?? '').trim();
+
+      if (!userId) {
+        return jsonResponse({ error: 'Sign in with a registered player handle to submit ranked scores.' }, 401);
+      }
+      const player = getOrHydrateEdgePlayer(
+        userId,
+        typeof body.username === 'string' ? body.username : undefined,
+        typeof body.className === 'string' ? body.className : undefined
+      );
+      if (!player) {
+        return jsonResponse({ error: 'Player account not found.' }, 401);
+      }
+      let session = EDGE_PG_SESSIONS.get(sessionId);
+      if (!session) {
+        const parts = sessionId.split('_');
+        const parsedGameId = gameIdBody || parts[2] || '';
+        const parsedStart = Number(parts[3]) || Date.now() - 10000;
+        if (!parsedGameId || !isValidPlaygroundGameId(parsedGameId)) {
+          return jsonResponse({ error: 'Playground session not found.' }, 404);
+        }
+        session = {
+          sessionId,
+          userId,
+          gameId: parsedGameId,
+          startedAt: parsedStart,
+          status: 'active',
+          isTest: false,
+        };
+      }
+      if (session.userId !== userId) {
+        return jsonResponse({ error: 'Forbidden: session belongs to another player.' }, 403);
+      }
+      if (session.status !== 'active') {
+        return jsonResponse({ error: 'Duplicate submission blocked.', alreadySubmitted: true }, 409);
+      }
+
+      const targetGameId = gameIdBody || session.gameId;
+      const check = validatePlaygroundSubmission({
+        gameId: targetGameId,
+        score: Number(body.score ?? 0),
+        rawMetric: body.rawMetric !== undefined ? Number(body.rawMetric) : undefined,
+        completionTimeMs: body.completionTimeMs !== undefined ? Number(body.completionTimeMs) : undefined,
+        accuracy: body.accuracy !== undefined ? Number(body.accuracy) : 100,
+        startedAt: session.startedAt,
+      });
+      if (!check.valid) {
+        return jsonResponse({ error: check.reason || 'Anti-cheat validation rejected score.' }, 400);
+      }
+
+      session.status = 'completed';
+      EDGE_PG_SESSIONS.set(sessionId, session);
+
+      const includeTest = session.isTest;
+      const prevGlobalRank =
+        queryEdgePlaygroundLeaderboard({ gameId: 'all', timeframe: 'global', userId, includeTest })
+          .currentUserEntry?.rank ?? null;
+      const prevGameRank =
+        queryEdgePlaygroundLeaderboard({ gameId: targetGameId, timeframe: 'global', userId, includeTest })
+          .currentUserEntry?.rank ?? null;
+      const previousBestScore = EDGE_PG_RESULTS.filter(
+        (r) => r.userId === userId && r.gameId === targetGameId && !r.isTest
+      ).reduce<number | null>((mx, r) => (mx === null ? r.score : Math.max(mx, r.score)), null);
+
+      const isPersonalBest = previousBestScore === null || check.sanitizedScore > previousBestScore;
+      const won = body.won !== false && check.sanitizedScore > 0;
+      const baseXp = Math.max(15, Math.min(220, Math.round(check.sanitizedScore * 0.08) + (won ? 20 : 5)));
+      const nowIso = new Date().toISOString();
+      const todayStr = nowIso.slice(0, 10);
+
+      const achs: string[] = ['first_run'];
+      if (PLAYGROUND_MINIGAME_MAP.has(targetGameId as GameModeId)) achs.push('first_minigame');
+      if (TRACK_AND_LAB_GAME_IDS.has(targetGameId)) achs.push('first_build');
+      if (isPersonalBest && previousBestScore !== null) achs.push('new_pb');
+      if (check.sanitizedAccuracy === 100 && won) achs.push('perfect_run');
+
+      let bonusDailyXp = 0;
+      if (!includeTest && won) {
+        const triple = getDailyTripleForDate(todayStr);
+        const mgKey = `${userId}:${todayStr}:minigame`;
+        if (
+          targetGameId === triple.miniGame.gameId &&
+          check.sanitizedScore >= triple.miniGame.targetScore &&
+          !EDGE_DAILY_TRIPLE_CLAIMS.has(mgKey)
+        ) {
+          EDGE_DAILY_TRIPLE_CLAIMS.add(mgKey);
+          bonusDailyXp += triple.miniGame.xpReward;
+        }
+        const bKey = `${userId}:${todayStr}:builder`;
+        if (TRACK_AND_LAB_GAME_IDS.has(targetGameId) && !EDGE_DAILY_TRIPLE_CLAIMS.has(bKey)) {
+          EDGE_DAILY_TRIPLE_CLAIMS.add(bKey);
+          bonusDailyXp += triple.builder.xpReward;
+        }
+      }
+
+      const progression = updateEdgePlayerProgression({
+        player,
+        xpEarned: baseXp + bonusDailyXp,
+        maxStreak: won ? 1 : 0,
+        newAchievements: achs,
+      });
+
+      const resultId = `pgr_edge_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      EDGE_PG_RESULTS.push({
+        resultId,
+        sessionId,
+        userId,
+        username: progression.player.name,
+        className: progression.player.className,
+        title: progression.player.title,
+        level: progression.player.level,
+        xp: progression.player.xp,
+        streakBest: progression.player.streakBest,
+        gameId: targetGameId,
+        score: check.sanitizedScore,
+        rawMetric: check.sanitizedMetric,
+        completionTimeMs: check.sanitizedTimeMs,
+        accuracy: check.sanitizedAccuracy,
+        won,
+        xpEarned: baseXp + bonusDailyXp,
+        isTest: includeTest,
+        createdAt: nowIso,
+      });
+
+      const globalBoardAfter = queryEdgePlaygroundLeaderboard({
+        gameId: 'all',
+        timeframe: 'global',
+        userId,
+        includeTest,
+      });
+      const gameBoardAfter = queryEdgePlaygroundLeaderboard({
+        gameId: targetGameId,
+        timeframe: 'global',
+        userId,
+        includeTest,
+      });
+
+      const def = getMiniGameDef(targetGameId as GameModeId);
+      const funFacts = def?.funFacts || ['Verified engineering telemetry measures precision and control.'];
+
+      const payload: PlaygroundResultPayload = {
+        resultId,
+        sessionId,
+        gameId: targetGameId,
+        userId,
+        username: progression.player.name,
+        score: check.sanitizedScore,
+        rawMetric: check.sanitizedMetric,
+        completionTimeMs: check.sanitizedTimeMs,
+        accuracy: check.sanitizedAccuracy,
+        won,
+        isPersonalBest,
+        previousBestScore,
+        globalRank: globalBoardAfter.currentUserEntry?.rank ?? null,
+        prevGlobalRank,
+        gameRank: gameBoardAfter.currentUserEntry?.rank ?? null,
+        prevGameRank,
+        totalGamePlayers: gameBoardAfter.totalPlayers,
+        xpEarned: baseXp + bonusDailyXp,
+        leveledUp: progression.leveledUp,
+        unlockedAchievements: progression.unlockedAchievements,
+        funFact: funFacts[0],
+        player: progression.player,
+        createdAt: nowIso,
+      };
+      return jsonResponse(payload);
+    }
+
+    if (path === '/api/playground/leaderboard' && method === 'GET') {
+      const gameId = (url.searchParams.get('gameId') ?? 'all').trim();
+      const rawTf = (url.searchParams.get('timeframe') ?? 'global').toLowerCase();
+      const timeframe: LeaderboardTimeframe =
+        rawTf === 'daily' || rawTf === 'weekly' || rawTf === 'monthly' ? rawTf : 'global';
+      const search = (url.searchParams.get('search') ?? '').trim();
+      const userId = (url.searchParams.get('userId') ?? '').trim();
+      return jsonResponse(
+        queryEdgePlaygroundLeaderboard({
+          gameId,
+          timeframe,
+          search,
+          userId,
+        })
+      );
+    }
+
+    if (path === '/api/playground/events' && method === 'GET') {
+      const userId = (url.searchParams.get('userId') ?? '').trim();
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const flags = {
+        quiz: Boolean(userId && EDGE_DAILY_TRIPLE_CLAIMS.has(`${userId}:${todayStr}:quiz`)),
+        miniGame: Boolean(userId && EDGE_DAILY_TRIPLE_CLAIMS.has(`${userId}:${todayStr}:minigame`)),
+        builder: Boolean(userId && EDGE_DAILY_TRIPLE_CLAIMS.has(`${userId}:${todayStr}:builder`)),
+      };
+      const personalBests: Record<string, { bestScore: number; bestTimeMs: number; plays: number }> = {};
+      if (userId) {
+        for (const r of EDGE_PG_RESULTS) {
+          if (r.userId !== userId || r.isTest) continue;
+          const prev = personalBests[r.gameId];
+          if (!prev) {
+            personalBests[r.gameId] = { bestScore: r.score, bestTimeMs: r.completionTimeMs, plays: 1 };
+          } else {
+            prev.bestScore = Math.max(prev.bestScore, r.score);
+            prev.bestTimeMs = Math.min(prev.bestTimeMs, r.completionTimeMs);
+            prev.plays += 1;
+          }
+        }
+      }
+      const dailyTriple = getDailyTripleForDate(todayStr, flags);
+      const weeklyEvent = getWeeklyEventForDate(todayStr);
+      const weeklyBoard = queryEdgePlaygroundLeaderboard({
+        gameId: weeklyEvent.featuredGameId,
+        timeframe: 'weekly',
+        userId,
+      });
+      return jsonResponse({
+        date: todayStr,
+        dailyTriple,
+        weeklyEvent,
+        weeklyStandings: weeklyBoard.entries.slice(0, 10),
+        personalBests,
+        favoriteGameId: Object.entries(personalBests).sort((a, b) => b[1].plays - a[1].plays)[0]?.[0] ?? null,
       });
     }
 

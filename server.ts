@@ -14,6 +14,7 @@ import {
   ACHIEVEMENTS,
   computeLevelFromXp,
   getDailyChallengeForDate,
+  getDailyTripleForDate,
   getUnlockedThemesForLevel,
 } from './shared/progression.ts';
 import { QUESTION_BANK } from './shared/questionBank.ts';
@@ -1366,13 +1367,32 @@ async function startServer() {
           .all(userId) as Array<{ type: string }>;
         const typesSet = new Set(typeRows.map((r) => r.type));
         typesSet.add(type);
-        const achs = ['first_run', type === 'car' ? 'car_designer' : 'phone_architect'];
+        const achs = [
+          'first_run',
+          'first_build',
+          type === 'car' ? 'car_designer' : 'phone_architect',
+          type === 'car' ? 'car_engineer' : 'phone_designer',
+        ];
         if (typesSet.has('car') && typesSet.has('phone')) {
-          achs.push('studio_master');
+          achs.push('studio_master', 'master_builder');
+        }
+        let dailyBuilderBonus = 0;
+        if (isTest === 0) {
+          const todayStr = now.slice(0, 10);
+          const triple = getDailyTripleForDate(todayStr);
+          const claimed = db
+            .prepare("SELECT 1 FROM daily_triple_claims WHERE user_id = ? AND challenge_date = ? AND slot = 'builder'")
+            .get(userId, todayStr);
+          if (!claimed) {
+            db.prepare(
+              "INSERT INTO daily_triple_claims (user_id, challenge_date, slot, xp_awarded, completed_at) VALUES (?, ?, 'builder', ?, ?)"
+            ).run(userId, todayStr, triple.builder.xpReward, now);
+            dailyBuilderBonus = triple.builder.xpReward;
+          }
         }
         const prog = updatePlayerProgression({
           playerId: userId,
-          xpEarned: xpAward,
+          xpEarned: xpAward + dailyBuilderBonus,
           maxStreak: 0,
           newAchievements: achs,
         });
@@ -1485,6 +1505,8 @@ async function startServer() {
     const delExamSessions = db.prepare('DELETE FROM exam_sessions WHERE is_test = 1').run().changes;
     const delCreations = db.prepare('DELETE FROM creations WHERE is_test = 1').run().changes;
     const delSimulatorResults = db.prepare('DELETE FROM simulator_results WHERE is_test = 1').run().changes;
+    const delPlaygroundResults = db.prepare('DELETE FROM playground_results WHERE is_test = 1').run().changes;
+    const delPlaygroundSessions = db.prepare('DELETE FROM playground_sessions WHERE is_test = 1').run().changes;
     res.json({
       cleared: {
         testPlayers: delPlayers,
@@ -1496,6 +1518,8 @@ async function startServer() {
         testExamSessions: delExamSessions,
         testCreations: delCreations,
         testSimulatorResults: delSimulatorResults,
+        testPlaygroundResults: delPlaygroundResults,
+        testPlaygroundSessions: delPlaygroundSessions,
       },
       preservedRealData: true,
     });

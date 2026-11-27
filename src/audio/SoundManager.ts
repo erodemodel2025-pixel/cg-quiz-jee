@@ -27,7 +27,13 @@ export type SfxName =
   | 'bonk'
   | 'oof'
   | 'baDumTss'
-  | 'wow';
+  | 'wow'
+  | 'snap'
+  | 'bounce'
+  | 'thruster'
+  | 'engineRev'
+  | 'shift'
+  | 'brake';
 
 export interface AudioPrefs {
   soundEnabled: boolean;
@@ -729,6 +735,34 @@ export class SoundManager {
           this.scheduleTone(f, t + idx * 0.05, 0.24, 'triangle', 0.2, dest)
         );
         this.scheduleTone(1567.98, t + 0.31, 0.36, 'sine', 0.24, dest);
+        break;
+      }
+      case 'snap': {
+        this.scheduleTone(880, t, 0.045, 'triangle', 0.24, dest);
+        this.scheduleTone(1320, t + 0.03, 0.05, 'sine', 0.2, dest);
+        break;
+      }
+      case 'bounce': {
+        this.schedulePitchSlideTone(320, 140, t, 0.09, 'sine', 0.26, dest);
+        break;
+      }
+      case 'thruster': {
+        this.scheduleNoiseHit(t, 0.09, 320, 0.14, dest);
+        this.scheduleTone(110, t, 0.08, 'triangle', 0.12, dest, 450);
+        break;
+      }
+      case 'engineRev': {
+        this.schedulePitchSlideTone(95, 220, t, 0.16, 'sawtooth', 0.16, dest, 680);
+        break;
+      }
+      case 'shift': {
+        this.scheduleTone(420, t, 0.04, 'square', 0.16, dest, 1200);
+        this.schedulePitchSlideTone(180, 135, t + 0.03, 0.08, 'sawtooth', 0.14, dest, 600);
+        break;
+      }
+      case 'brake': {
+        this.scheduleNoiseHit(t, 0.12, 2400, 0.14, dest);
+        this.schedulePitchSlideTone(580, 320, t, 0.1, 'sine', 0.1, dest);
         break;
       }
     }

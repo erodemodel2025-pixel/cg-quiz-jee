@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { arcadeAudio, type MusicMode } from '../audio/arcadeAudio.ts';
-import type { ClassOption, PixelThemeId, PlayerProfile, UiThemeMode } from '../../shared/types.ts';
+import type { ClassOption, GraphicsQuality, PixelThemeId, PlayerProfile, UiThemeMode } from '../../shared/types.ts';
 import { safeFetchJson } from '../utils/apiClient.ts';
 import {
   getOrCreateGuestUserId,
@@ -13,6 +13,22 @@ const LEGACY_STORAGE_KEY = 'cgquiz_participant';
 const PLAYER_STORAGE_KEY = 'cgquiz_arcade_player';
 const MOTION_KEY = 'cgquiz_reduced_motion';
 const UI_THEME_KEY = 'cgquiz_ui_theme';
+const GRAPHICS_KEY = 'cgquiz_graphics_quality';
+
+function detectDefaultGraphicsQuality(): GraphicsQuality {
+  if (typeof window === 'undefined') return 'high';
+  try {
+    const stored = localStorage.getItem(GRAPHICS_KEY);
+    if (stored === 'low' || stored === 'medium' || stored === 'high') return stored;
+    const cores = navigator.hardwareConcurrency || 4;
+    const mem = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
+    if (cores <= 2 || mem <= 2) return 'low';
+    if (cores <= 4 || mem <= 4) return 'medium';
+  } catch {
+    // ignore
+  }
+  return 'high';
+}
 
 interface CelebrationEvent {
   id: number;
@@ -32,6 +48,7 @@ interface ArcadeContextValue {
   soundEnabled: boolean;
   musicEnabled: boolean;
   reducedMotion: boolean;
+  graphicsQuality: GraphicsQuality;
   celebration: CelebrationEvent | null;
   recentErrors: string[];
   registerPlayer: (name: string, className: ClassOption, isTest?: boolean) => Promise<{ ok: boolean; error?: string }>;
@@ -43,6 +60,7 @@ interface ArcadeContextValue {
   toggleSound: () => void;
   toggleMusic: () => void;
   toggleReducedMotion: () => void;
+  setGraphicsQuality: (q: GraphicsQuality) => void;
   setMusicMode: (mode: MusicMode) => void;
   triggerCelebration: (title: string, subtitle: string, color?: string) => void;
   unlockAchievement: (achievementId: string, label?: string) => Promise<void>;
@@ -74,6 +92,7 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (stored !== null) return stored === 'true';
     return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   });
+  const [graphicsQuality, setGraphicsQualityState] = useState<GraphicsQuality>(detectDefaultGraphicsQuality);
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   const [recentErrors, setRecentErrors] = useState<string[]>([]);
 
@@ -411,6 +430,7 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         soundEnabled,
         musicEnabled,
         reducedMotion,
+        graphicsQuality,
         celebration,
         recentErrors,
         registerPlayer,
@@ -422,6 +442,14 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         toggleSound: () => arcadeAudio.toggleSound(),
         toggleMusic: () => arcadeAudio.toggleMusic(),
         toggleReducedMotion: () => setReducedMotion((v) => !v),
+        setGraphicsQuality: (q) => {
+          setGraphicsQualityState(q);
+          try {
+            localStorage.setItem(GRAPHICS_KEY, q);
+          } catch {
+            // ignore
+          }
+        },
         setMusicMode: (m) => arcadeAudio.setMusicMode(m),
         triggerCelebration,
         unlockAchievement,

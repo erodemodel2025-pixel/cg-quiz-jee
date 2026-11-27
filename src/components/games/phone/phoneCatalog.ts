@@ -81,6 +81,8 @@ export interface PhoneBayConfig {
   peripherals: 'full-ip68-taptic' | 'basic-seals';
 }
 
+export type PhoneCaseStyle = 'none' | 'clear' | 'silicone' | 'rugged' | 'carbon';
+
 export interface PhoneDesignState {
   deviceName: string;
   sizePreset: PhoneSizePreset;
@@ -96,6 +98,9 @@ export interface PhoneDesignState {
   viewMode: PhoneInspectionViewMode;
   assemblyStepIndex: number;
   installedBays: PhoneBayId[];
+  // Studio Quick Controls
+  caseStyle?: PhoneCaseStyle;
+  screenAwake?: boolean;
 }
 
 export interface BayOptionDef<K extends PhoneBayId = PhoneBayId> {
@@ -314,6 +319,8 @@ export function normalizePhoneState(raw?: Partial<PhoneDesignState> | null): Pho
         : base.installedBays,
     viewMode: raw.viewMode || base.viewMode,
     assemblyStepIndex: typeof raw.assemblyStepIndex === 'number' ? raw.assemblyStepIndex : base.assemblyStepIndex,
+    caseStyle: raw.caseStyle || 'none',
+    screenAwake: raw.screenAwake !== false,
   };
 }
 

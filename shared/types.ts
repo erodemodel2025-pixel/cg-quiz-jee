@@ -10,7 +10,46 @@ export type GameModeId =
   | 'logic-lab'
   | 'component-match'
   | 'auto-engineer'
-  | 'phone-designer';
+  | 'phone-designer'
+  | 'car-test-0-100'
+  | 'car-test-topspeed'
+  | 'car-test-braking'
+  | 'car-test-slalom'
+  | 'car-test-drag'
+  | 'phone-test-lab'
+  | 'reaction-test'
+  | 'circuit-connect'
+  | 'engineering-balance'
+  | 'robot-control'
+  | 'memory-circuit'
+  | 'tech-assembly'
+  | 'drone-landing'
+  | 'bridge-builder'
+  | 'gear-machine'
+  | 'sort-circuit'
+  | 'rocket-balance'
+  | 'engineering-speedrun';
+
+export type GraphicsQuality = 'low' | 'medium' | 'high';
+
+export type QuizPlayMode =
+  | 'normal'
+  | 'speed-round'
+  | 'streak-mode'
+  | 'time-attack'
+  | 'boss-round'
+  | 'daily';
+
+export type LeaderboardTimeframe = 'global' | 'daily' | 'weekly' | 'monthly';
+
+export type PlaygroundGameCategory =
+  | 'Physics'
+  | 'Tech'
+  | 'Engineering'
+  | 'Reaction'
+  | 'Memory'
+  | 'Building'
+  | 'Simulation';
 
 export type PixelThemeId =
   | 'cyber-midnight'
@@ -595,6 +634,112 @@ export interface GameResultPayload {
   player: PlayerProfile | null;
   details: GameEvaluatedItem[];
   createdAt: string;
+}
+
+/* ============================================================
+   ENGINEERING PLAYGROUND: 12 MINI-GAMES, EVENTS & TELEMETRY
+   ============================================================ */
+
+export interface PlaygroundMiniGameDef {
+  id: GameModeId;
+  title: string;
+  tagline: string;
+  category: PlaygroundGameCategory;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  controlsSummary: string;
+  howToPlay: string;
+  scoreUnit: 'pts' | 'ms' | 'sec';
+  higherIsBetter: boolean;
+  minValidSeconds: number;
+  maxValidScore: number;
+  leaderboardLabel: string;
+  funFacts: string[];
+  accentColor: string;
+}
+
+export interface PlaygroundLeaderboardEntry {
+  rank: number;
+  prevRank?: number | null;
+  rankDelta?: number;
+  userId: string;
+  username: string;
+  className: string;
+  title: string;
+  level: number;
+  xp: number;
+  score: number;
+  bestScore: number;
+  totalPoints: number;
+  gamesPlayed: number;
+  winRate: number;
+  streak: number;
+  accuracy: number;
+  completionTimeMs: number;
+  gameId: string;
+  createdAt: string;
+}
+
+export interface PlaygroundResultPayload {
+  resultId: string;
+  sessionId: string;
+  gameId: string;
+  userId: string;
+  username: string;
+  score: number;
+  rawMetric: number;
+  completionTimeMs: number;
+  accuracy: number;
+  won: boolean;
+  isPersonalBest: boolean;
+  previousBestScore: number | null;
+  globalRank: number | null;
+  prevGlobalRank: number | null;
+  gameRank: number | null;
+  prevGameRank: number | null;
+  totalGamePlayers: number;
+  xpEarned: number;
+  leveledUp: boolean;
+  unlockedAchievements: string[];
+  funFact: string;
+  player: PlayerProfile | null;
+  createdAt: string;
+}
+
+export interface WeeklyEventInfo {
+  weekId: string;
+  title: string;
+  subtitle: string;
+  featuredGameId: GameModeId | 'car-test-0-100' | 'car-test-slalom';
+  ruleSummary: string;
+  bonusXp: number;
+  endsInLabel: string;
+}
+
+export interface DailyTripleStatus {
+  date: string;
+  quiz: {
+    title: string;
+    description: string;
+    categoryId: string;
+    targetCount: number;
+    completed: boolean;
+    xpReward: number;
+  };
+  miniGame: {
+    gameId: GameModeId;
+    title: string;
+    description: string;
+    targetScore: number;
+    completed: boolean;
+    xpReward: number;
+  };
+  builder: {
+    studio: 'auto-engineer' | 'phone-designer';
+    title: string;
+    description: string;
+    completed: boolean;
+    xpReward: number;
+  };
 }
 
 

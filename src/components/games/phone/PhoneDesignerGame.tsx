@@ -27,7 +27,7 @@ import {
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import type { SavedCreation } from '../../../../shared/types.ts';
+import type { GameModeId, SavedCreation } from '../../../../shared/types.ts';
 import { arcadeAudio } from '../../../audio/arcadeAudio.ts';
 import { useArcade } from '../../../context/ArcadeContext.tsx';
 import {
@@ -56,6 +56,7 @@ import {
   PHONE_WALLPAPERS,
   type PhoneBayConfig,
   type PhoneBayId,
+  type PhoneCaseStyle,
   type PhoneDesignState,
   type PhoneInspectionViewMode,
   type PhoneSizePreset,
@@ -66,11 +67,15 @@ import {
   PHONE_SUBSYSTEMS,
   type PhoneSubsystemId,
 } from './phoneEngineeringData.ts';
+import { PhoneTestLabModal } from './PhoneTestLabModal.tsx';
 
 interface PhoneDesignerGameProps {
   onExit: () => void;
   initialDesign?: Partial<PhoneDesignState> | null;
   initialCreationId?: string | null;
+  initialOpenTestLab?: boolean;
+  onOpenLeaderboard?: (gameId: GameModeId) => void;
+  onGoHome?: () => void;
 }
 
 type WorkstationTab = 'assemble' | 'telemetry' | 'challenges' | 'components' | 'saved';
@@ -108,13 +113,19 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
   onExit,
   initialDesign,
   initialCreationId,
+  initialOpenTestLab = false,
+  onOpenLeaderboard,
+  onGoHome,
 }) => {
-  const { player, updateLocalPlayer } = useArcade();
+  const { player, graphicsQuality, updateLocalPlayer } = useArcade();
   const isAuthenticated = Boolean(player?.id);
   const userId = getGuestOrUserId(player?.id);
 
   const [state, setState] = useState<PhoneDesignState>(() => normalizePhoneState(initialDesign));
   const [editingId, setEditingId] = useState<string | undefined>(initialCreationId || undefined);
+  const [testLabOpen, setTestLabOpen] = useState(initialOpenTestLab);
+  const [flashPulse, setFlashPulse] = useState(false);
+  const [chargingActive, setChargingActive] = useState(false);
 
   const [activeTab, setActiveTab] = useState<WorkstationTab>('assemble');
   const [selectedBay, setSelectedBay] = useState<PhoneBayId>('soc');
@@ -247,8 +258,9 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
-    renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = !isSoftwareGl;
+    const maxDpr = graphicsQuality === 'low' ? 1 : graphicsQuality === 'medium' ? 1.5 : 2;
+    renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, maxDpr));
+    renderer.shadowMap.enabled = !isSoftwareGl && graphicsQuality !== 'low';
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const w = Math.max(320, container.clientWidth);
@@ -554,7 +566,12 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
 
     const isSw = detectSoftwareGl();
     const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    const rig = buildPhoneGroup(state, { isSoftwareGl: isSw, maxAnisotropy: maxAniso });
+    const rig = buildPhoneGroup(state, {
+      isSoftwareGl: isSw,
+      maxAnisotropy: maxAniso,
+      flashPulse,
+      chargingActive,
+    });
     phoneRigRef.current = rig;
     scene.add(rig.root);
     requestRenderRef.current();
@@ -566,6 +583,10 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
     state.wallpaperId,
     state.deviceName,
     state.installedBays,
+    state.caseStyle,
+    state.screenAwake,
+    flashPulse,
+    chargingActive,
   ]);
 
   // Trigger smooth Z transition when viewMode toggles
@@ -741,6 +762,17 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
   );
   const guidedBayId = ASSEMBLY_SEQUENCE[currentStepIdx];
 
+  if (testLabOpen) {
+    return (
+      <PhoneTestLabModal
+        state={state}
+        onExit={() => setTestLabOpen(false)}
+        onOpenLeaderboard={onOpenLeaderboard}
+        onGoHome={onGoHome}
+      />
+    );
+  }
+
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col bg-[#040814] text-slate-100 select-none">
       {/* TOP ENGINEERING WORKSTATION BAR */}
@@ -823,6 +855,18 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
             title="Export 3D CAD Snapshot PNG"
           >
             <Camera size={14} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playSfx('click');
+              setTestLabOpen(true);
+            }}
+            className="studio-btn studio-btn-emerald text-xs px-3 py-1.5 min-h-[36px]"
+          >
+            <Activity size={14} />
+            <span>Open Test Lab</span>
           </button>
 
           <button
@@ -1405,6 +1449,70 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
                         </button>
                       ))}
                     </div>
+
+                    {/* Protective Case & Interactive Device States */}
+                    <div className="pt-2 border-t border-white/10 space-y-2">
+                      <div className="font-mono-tech text-[10px] text-slate-400 uppercase">Protective Case &amp; Interactive Hardware</div>
+                      <select
+                        value={state.caseStyle || 'none'}
+                        onChange={(e) => setState((p) => ({ ...p, caseStyle: e.target.value as PhoneCaseStyle }))}
+                        className="studio-input w-full px-2.5 py-1.5 text-xs bg-[#070E1F]"
+                      >
+                        <option value="none">No Case (Bare Chassis)</option>
+                        <option value="clear">Clear Polycarbonate Case</option>
+                        <option value="silicone">Silicone Cyan Bumper</option>
+                        <option value="rugged">Rugged Impact Case</option>
+                        <option value="carbon">Aramid Carbon Shell</option>
+                      </select>
+
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            arcadeAudio.playSfx('snap');
+                            setState((p) => ({ ...p, screenAwake: p.screenAwake === false }));
+                          }}
+                          className={`py-1.5 rounded-lg text-[10px] font-mono-tech border cursor-pointer ${
+                            state.screenAwake !== false ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-slate-950 border-white/15 text-slate-400'
+                          }`}
+                        >
+                          {state.screenAwake !== false ? 'Wake ON' : 'Locked'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            arcadeAudio.playSfx('click');
+                            setFlashPulse(true);
+                            window.setTimeout(() => setFlashPulse(false), 750);
+                          }}
+                          className="py-1.5 rounded-lg text-[10px] font-mono-tech border bg-amber-500/15 border-amber-400/40 text-amber-200 cursor-pointer"
+                        >
+                          Flash LED
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            arcadeAudio.playSfx('correct');
+                            setChargingActive((v) => !v);
+                          }}
+                          className={`py-1.5 rounded-lg text-[10px] font-mono-tech border cursor-pointer ${
+                            chargingActive ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200' : 'bg-slate-950 border-white/15 text-slate-300'
+                          }`}
+                        >
+                          {chargingActive ? 'Charging' : 'Plug USB'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            arcadeAudio.playSfx('bounce');
+                            showToast('Acoustic LRA Taptic & stereo speaker test tone fired.');
+                          }}
+                          className="py-1.5 rounded-lg text-[10px] font-mono-tech border bg-purple-500/15 border-purple-400/40 text-purple-200 cursor-pointer"
+                        >
+                          Speaker
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
@@ -1703,7 +1811,7 @@ export const PhoneDesignerGame: React.FC<PhoneDesignerGameProps> = ({
                             type="button"
                             onClick={() => {
                               arcadeAudio.playSfx('click');
-                              void removeCreation(userId, item.id).then(refreshSaved);
+                              void removeCreation(item.id, userId).then(refreshSaved);
                             }}
                             className="p-1.5 rounded-lg bg-slate-950 border border-white/10 text-rose-400 hover:border-rose-400 cursor-pointer"
                             title="Delete prototype"

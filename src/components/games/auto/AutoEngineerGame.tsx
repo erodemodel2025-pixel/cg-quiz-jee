@@ -27,7 +27,7 @@ import {
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import type { SavedCreation } from '../../../../shared/types.ts';
+import type { GameModeId, SavedCreation } from '../../../../shared/types.ts';
 import { arcadeAudio } from '../../../audio/arcadeAudio.ts';
 import { useArcade } from '../../../context/ArcadeContext.tsx';
 import {
@@ -44,6 +44,7 @@ import {
   submitSimulatorMissionScore,
 } from '../shared/simulatorLeaderboardClient.ts';
 import { buildVehicleGroup, type VehicleRigHandles } from './carBuilder3d.ts';
+import { CarTestDriveLab, type TrackLabMode } from './CarTestDriveLab.tsx';
 import {
   CAR_MISSIONS,
   createInitialBuild,
@@ -57,11 +58,14 @@ import {
   type BrakeSystemType,
   type CarBuildConfig,
   type CarInspectionViewMode,
+  type DecalStyle,
   type DifferentialType,
   type EngineConfig,
   type ForcedInduction,
   type FrontBumperStyle,
   type GearRatioProfile,
+  type HeadlightStyle,
+  type InteriorTheme,
   type PaintFinish,
   type PowertrainType,
   type RearBumperStyle,
@@ -69,10 +73,12 @@ import {
   type SpoilerStyle,
   type StudioEnvironment,
   type SuspensionType,
+  type TaillightStyle,
   type TireCompound,
   type TransmissionType,
   type VehicleTypeId,
   type WeightConcept,
+  type WindowTintStyle,
 } from './carCatalog.ts';
 import {
   CAR_COMPONENT_MAP,
@@ -86,10 +92,14 @@ interface AutoEngineerGameProps {
   initialBuild?: Partial<CarBuildConfig> | null;
   initialTitle?: string | null;
   initialCreationId?: string | null;
+  initialTrackMode?: TrackLabMode | null;
+  onOpenLeaderboard?: (gameId: GameModeId) => void;
+  onGoHome?: () => void;
 }
 
-type StudioStage = 'garage' | 'studio';
-type WorkstationTab = 'powertrain' | 'chassis' | 'telemetry' | 'missions' | 'components' | 'saved';
+type StudioStage = 'garage' | 'studio' | 'track';
+type WorkstationTab = 'customize' | 'powertrain' | 'chassis' | 'telemetry' | 'missions' | 'components' | 'saved';
+type CustomizerSubTab = 'body' | 'wheels' | 'performance' | 'lights' | 'details';
 type CameraPresetId = 'hero' | 'front' | 'side' | 'rear' | 'top' | 'engine' | 'wheel';
 
 const CAMERA_PRESETS: Record<CameraPresetId, { pos: [number, number, number]; target: [number, number, number] }> = {
@@ -123,12 +133,18 @@ export const AutoEngineerGame: React.FC<AutoEngineerGameProps> = ({
   initialBuild,
   initialTitle,
   initialCreationId,
+  initialTrackMode = null,
+  onOpenLeaderboard,
+  onGoHome,
 }) => {
-  const { player, updateLocalPlayer } = useArcade();
+  const { player, graphicsQuality, updateLocalPlayer } = useArcade();
   const isAuthenticated = Boolean(player?.id);
   const userId = getGuestOrUserId(player?.id);
 
-  const [stage, setStage] = useState<StudioStage>(initialBuild ? 'studio' : 'garage');
+  const [stage, setStage] = useState<StudioStage>(
+    initialTrackMode ? 'track' : initialBuild ? 'studio' : 'garage'
+  );
+  const [trackMode, setTrackMode] = useState<TrackLabMode>(initialTrackMode || '0-100');
   const [config, setConfig] = useState<CarBuildConfig>(() => {
     const base = createInitialBuild((initialBuild?.vehicleId as VehicleTypeId) || 'sports-coupe');
     return initialBuild ? { ...base, ...initialBuild } : base;
@@ -139,6 +155,7 @@ export const AutoEngineerGame: React.FC<AutoEngineerGameProps> = ({
   const [editingCreationId, setEditingCreationId] = useState<string | undefined>(initialCreationId || undefined);
 
   const [activeTab, setActiveTab] = useState<WorkstationTab>('powertrain');
+  const [customTab, setCustomTab] = useState<CustomizerSubTab>('body');
   const [subsystemFilter, setSubsystemFilter] = useState<CarSubsystemId>('engine');
   const [learningMode, setLearningMode] = useState(true);
   const [hideHud, setHideHud] = useState(false);
@@ -403,12 +420,13 @@ export const AutoEngineerGame: React.FC<AutoEngineerGameProps> = ({
       return;
     }
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, softwareGl ? 1.5 : 2));
+    const maxPixelRatio = graphicsQuality === 'low' ? 1 : graphicsQuality === 'medium' ? 1.5 : 2;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, softwareGl ? 1.25 : maxPixelRatio));
     renderer.setSize(container.clientWidth || 800, container.clientHeight || 520);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
-    renderer.shadowMap.enabled = !softwareGl;
+    renderer.shadowMap.enabled = !softwareGl && graphicsQuality !== 'low';
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
@@ -636,7 +654,7 @@ export const AutoEngineerGame: React.FC<AutoEngineerGameProps> = ({
       sceneRef.current = null;
       vehicleGroupRef.current = null;
     };
-  }, [stage, applyEnvironmentToScene]);
+  }, [stage, graphicsQuality, applyEnvironmentToScene]);
 
   // Rebuild vehicle mesh whenever hardware/config changes (and trigger animation loop for hood/explode)
   useEffect(() => {
@@ -752,6 +770,22 @@ export const AutoEngineerGame: React.FC<AutoEngineerGameProps> = ({
       showToast(result.error || 'Sign in to submit mission scores to the leaderboard.');
     }
   };
+
+  /* ============================================================
+     STAGE 0: PLAYABLE 3D TEST DRIVE TRACK & DYNO LAB
+     ============================================================ */
+  if (stage === 'track') {
+    return (
+      <CarTestDriveLab
+        config={config}
+        carName={carName}
+        initialMode={trackMode}
+        onExit={() => setStage('studio')}
+        onOpenLeaderboard={onOpenLeaderboard}
+        onGoHome={onGoHome}
+      />
+    );
+  }
 
   /* ============================================================
      STAGE 1: CHASSIS PLATFORM SELECTOR
@@ -936,6 +970,19 @@ export const AutoEngineerGame: React.FC<AutoEngineerGameProps> = ({
 
           <button
             type="button"
+            onClick={() => {
+              arcadeAudio.playSfx('engineRev');
+              setTrackMode('0-100');
+              setStage('track');
+            }}
+            className="studio-btn studio-btn-emerald text-xs px-3 py-1.5 min-h-[34px]"
+          >
+            <Gauge size={13} />
+            <span>Test Drive / Dyno</span>
+          </button>
+
+          <button
+            type="button"
             disabled={saving}
             onClick={() => void handleSaveCar()}
             className="studio-btn studio-btn-primary text-xs px-3 py-1.5 min-h-[34px]"
@@ -1114,14 +1161,15 @@ export const AutoEngineerGame: React.FC<AutoEngineerGameProps> = ({
         {!hideHud && (
           <aside className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-cyan-500/25 bg-[#070E20] flex flex-col max-h-[600px] lg:max-h-[calc(100vh-7.5rem)]">
             {/* Workstation Tabs */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-3 gap-1 p-1.5 border-b border-white/10 bg-[#050A17]">
+            <div className="grid grid-cols-4 sm:grid-cols-7 lg:grid-cols-4 gap-1 p-1.5 border-b border-white/10 bg-[#050A17]">
               {(
                 [
+                  { id: 'customize', label: 'Visuals', icon: Wrench },
                   { id: 'powertrain', label: 'Engine/Aero', icon: Cpu },
-                  { id: 'chassis', label: 'Chassis/Body', icon: Sliders },
+                  { id: 'chassis', label: 'Chassis/Susp', icon: Sliders },
                   { id: 'telemetry', label: 'Physics/Math', icon: Gauge },
                   { id: 'missions', label: '7 Missions', icon: Target },
-                  { id: 'components', label: 'Learn Parts', icon: BookOpen },
+                  { id: 'components', label: 'Learn CAD', icon: BookOpen },
                   { id: 'saved', label: `Garage (${savedCars.length})`, icon: FolderOpen },
                 ] as const
               ).map((t) => {
@@ -1134,20 +1182,235 @@ export const AutoEngineerGame: React.FC<AutoEngineerGameProps> = ({
                       arcadeAudio.playSfx('click');
                       setActiveTab(t.id);
                     }}
-                    className={`py-1.5 px-2 rounded-lg text-[11px] font-sora font-semibold flex items-center justify-center gap-1 cursor-pointer border transition-colors ${
+                    className={`py-1.5 px-1.5 rounded-lg text-[10px] font-sora font-semibold flex items-center justify-center gap-1 cursor-pointer border transition-colors ${
                       activeTab === t.id
                         ? 'bg-blue-600/35 border-cyan-400 text-cyan-100'
                         : 'bg-[#0B1328] border-white/5 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <Icon size={12} />
-                    <span>{t.label}</span>
+                    <Icon size={11} />
+                    <span className="truncate">{t.label}</span>
                   </button>
                 );
               })}
             </div>
 
             <div className="flex-1 overflow-y-auto studio-scroll p-4 space-y-4">
+              {/* TAB 0: VISUAL CUSTOMIZER (BODY / WHEELS / PERFORMANCE / LIGHTS / DETAILS) */}
+              {activeTab === 'customize' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-5 gap-1">
+                    {(['body', 'wheels', 'performance', 'lights', 'details'] as CustomizerSubTab[]).map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => {
+                          arcadeAudio.playSfx('click');
+                          setCustomTab(st);
+                        }}
+                        className={`py-1.5 rounded-lg text-[10px] font-mono-tech uppercase font-bold border cursor-pointer ${
+                          customTab === st
+                            ? 'bg-cyan-500 text-slate-950 border-cyan-300'
+                            : 'bg-[#0B152C] border-white/10 text-slate-300'
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+
+                  {customTab === 'body' && (
+                    <div className="p-3 rounded-xl bg-[#0B152C] border border-white/10 space-y-3">
+                      <div className="font-mono-tech text-[10px] text-cyan-300 uppercase">Paint Color &amp; Finish</div>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {PAINT_COLORS.map((c) => (
+                          <button
+                            key={c.hex}
+                            type="button"
+                            onClick={() => setConfig((p) => ({ ...p, bodyColor: c.hex }))}
+                            title={c.name}
+                            className={`h-8 rounded-lg border-2 cursor-pointer ${
+                              config.bodyColor === c.hex ? 'border-cyan-300 scale-105' : 'border-white/20'
+                            }`}
+                            style={{ backgroundColor: c.hex }}
+                          />
+                        ))}
+                      </div>
+                      <select
+                        value={config.paintFinish}
+                        onChange={(e) => setConfig((p) => ({ ...p, paintFinish: e.target.value as PaintFinish }))}
+                        className="studio-input w-full px-2.5 py-2 text-xs bg-[#070E1F]"
+                      >
+                        <option value="gloss">Gloss Clearcoat</option>
+                        <option value="metallic">Metallic Flake</option>
+                        <option value="pearl">Pearl Iridescent</option>
+                        <option value="matte">Satin Matte</option>
+                      </select>
+                      <select
+                        value={config.bodyKit}
+                        onChange={(e) => setConfig((p) => ({ ...p, bodyKit: e.target.value as BodyKitStyle }))}
+                        className="studio-input w-full px-2.5 py-2 text-xs bg-[#070E1F]"
+                      >
+                        <option value="factory">Body Kit: Factory</option>
+                        <option value="street-skirts">Street Skirts</option>
+                        <option value="widebody-flares">Widebody Flares</option>
+                        <option value="aero-gt">Aero GT Ground-Effect</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {customTab === 'wheels' && (
+                    <div className="p-3 rounded-xl bg-[#0B152C] border border-white/10 space-y-3">
+                      <div className="font-mono-tech text-[10px] text-cyan-300 uppercase">Rims, Scale &amp; Stance</div>
+                      <select
+                        value={config.rimDesign}
+                        onChange={(e) => setConfig((p) => ({ ...p, rimDesign: e.target.value as RimDesign }))}
+                        className="studio-input w-full px-2.5 py-2 text-xs bg-[#070E1F]"
+                      >
+                        <option value="twin-5">Twin-5 Forged</option>
+                        <option value="turbofan">Aero Turbofan</option>
+                        <option value="multi-10">Multi-10 Mesh</option>
+                        <option value="deep-mesh">Deep-Dish Track</option>
+                        <option value="offroad-bead">Beadlock 4x4</option>
+                      </select>
+                      <div className="flex gap-1.5">
+                        {RIM_COLORS.map((rc) => (
+                          <button
+                            key={rc.hex}
+                            type="button"
+                            onClick={() => setConfig((p) => ({ ...p, rimColor: rc.hex }))}
+                            className={`flex-1 h-7 rounded border cursor-pointer ${
+                              config.rimColor === rc.hex ? 'border-cyan-300' : 'border-white/15'
+                            }`}
+                            style={{ backgroundColor: rc.hex }}
+                          />
+                        ))}
+                      </div>
+                      <div>
+                        <div className="flex justify-between font-mono-tech text-[11px] text-slate-300 mb-1">
+                          <span>Wheel Diameter Scale</span>
+                          <span className="text-cyan-300">{config.wheelScale.toFixed(2)}x</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.9}
+                          max={1.15}
+                          step={0.01}
+                          value={config.wheelScale}
+                          onChange={(e) => setConfig((p) => ({ ...p, wheelScale: Number(e.target.value) }))}
+                          className="w-full accent-cyan-400"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {customTab === 'performance' && (
+                    <div className="p-3 rounded-xl bg-[#0B152C] border border-cyan-500/30 space-y-3">
+                      <div className="font-mono-tech text-[10px] text-cyan-300 uppercase">Quick Track Readiness</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTrackMode('0-100');
+                            setStage('track');
+                          }}
+                          className="studio-btn studio-btn-primary py-2 text-xs"
+                        >
+                          <Gauge size={13} /> Launch 0–100 Track
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTrackMode('dyno');
+                            setStage('track');
+                          }}
+                          className="studio-btn studio-btn-cyan py-2 text-xs"
+                        >
+                          <Activity size={13} /> Open Dyno Sweep
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-300">
+                        Use Engine/Aero and Chassis tabs to swap Turbos, DCT gears, LSDs, and Double-Wishbone suspension—every mod immediately changes 3D Track acceleration, top speed, and stopping distance!
+                      </p>
+                    </div>
+                  )}
+
+                  {customTab === 'lights' && (
+                    <div className="p-3 rounded-xl bg-[#0B152C] border border-white/10 space-y-3">
+                      <div className="font-mono-tech text-[10px] text-cyan-300 uppercase">Headlights, Taillights &amp; Glass</div>
+                      <select
+                        value={config.headlights}
+                        onChange={(e) => setConfig((p) => ({ ...p, headlights: e.target.value as HeadlightStyle }))}
+                        className="studio-input w-full px-2.5 py-2 text-xs bg-[#070E1F]"
+                      >
+                        <option value="halos">Quad Halo Rings</option>
+                        <option value="matrix-led">Matrix LED Cubes</option>
+                        <option value="laser-blade">Cyan Laser Blade</option>
+                        <option value="amber-rally">Amber Endurance Rally</option>
+                      </select>
+                      <select
+                        value={config.taillights}
+                        onChange={(e) => setConfig((p) => ({ ...p, taillights: e.target.value as TaillightStyle }))}
+                        className="studio-input w-full px-2.5 py-2 text-xs bg-[#070E1F]"
+                      >
+                        <option value="classic-red">Classic Twin-Block</option>
+                        <option value="full-lightbar">Full-Width Lightbar</option>
+                        <option value="oled-blade">OLED Signature Blades</option>
+                        <option value="smoked-sport">Smoked GT Lenses</option>
+                      </select>
+                      <select
+                        value={config.windowTint}
+                        onChange={(e) => setConfig((p) => ({ ...p, windowTint: e.target.value as WindowTintStyle }))}
+                        className="studio-input w-full px-2.5 py-2 text-xs bg-[#070E1F]"
+                      >
+                        <option value="clear">Clear Factory Glass</option>
+                        <option value="light-smoke">Light Ceramic Smoke</option>
+                        <option value="midnight-tint">Midnight Privacy Tint</option>
+                        <option value="iridescent-blue">Iridescent Solar Coat</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {customTab === 'details' && (
+                    <div className="p-3 rounded-xl bg-[#0B152C] border border-white/10 space-y-3">
+                      <div className="font-mono-tech text-[10px] text-cyan-300 uppercase">Decals, Cabin Trim &amp; Stage</div>
+                      <select
+                        value={config.decal}
+                        onChange={(e) => setConfig((p) => ({ ...p, decal: e.target.value as DecalStyle }))}
+                        className="studio-input w-full px-2.5 py-2 text-xs bg-[#070E1F]"
+                      >
+                        <option value="none">Clean No Decal</option>
+                        <option value="racing-stripes">Twin Racing Stripes</option>
+                        <option value="side-livery">GT Side Livery</option>
+                        <option value="aero-number">Track Number Plate</option>
+                        <option value="cyber-circuit">Cyber EV Circuit</option>
+                      </select>
+                      <select
+                        value={config.interior}
+                        onChange={(e) => setConfig((p) => ({ ...p, interior: e.target.value as InteriorTheme }))}
+                        className="studio-input w-full px-2.5 py-2 text-xs bg-[#070E1F]"
+                      >
+                        <option value="obsidian">Obsidian Sport Trim</option>
+                        <option value="crimson-sport">Crimson Alcantara</option>
+                        <option value="tan-luxury">Cognac Luxury Leather</option>
+                        <option value="cyber-cyan">Cyber Cyan Studio</option>
+                      </select>
+                      <select
+                        value={config.environment}
+                        onChange={(e) => setConfig((p) => ({ ...p, environment: e.target.value as StudioEnvironment }))}
+                        className="studio-input w-full px-2.5 py-2 text-xs bg-[#070E1F]"
+                      >
+                        {ENVIRONMENT_OPTIONS.map((env) => (
+                          <option key={env.id} value={env.id}>
+                            Stage: {env.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* TAB 1: POWERTRAIN & AERODYNAMICS */}
               {activeTab === 'powertrain' && (
                 <div className="space-y-4">

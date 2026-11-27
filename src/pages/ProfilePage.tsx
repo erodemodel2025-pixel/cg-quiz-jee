@@ -4,20 +4,30 @@ import {
   Car,
   Check,
   Flame,
+  Gamepad2,
   Lock,
   LogOut,
+  Monitor,
+  Music,
   Palette,
+  Play,
+  Sliders,
   Smartphone,
+  Star,
   Trash2,
   Trophy,
   UserPlus,
+  Volume2,
 } from 'lucide-react';
 import {
   ACHIEVEMENTS,
   computeLevelFromXp,
+  getMiniGameDef,
   PIXEL_THEMES,
+  PLAYGROUND_MINIGAMES,
+  PROGRESSION_MILESTONES,
 } from '../../shared/progression.ts';
-import type { SavedCreation, SubmissionRecord } from '../../shared/types.ts';
+import type { GameModeId, SavedCreation, SubmissionRecord } from '../../shared/types.ts';
 import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
 import { safeFetchJson } from '../utils/apiClient.ts';
@@ -30,6 +40,8 @@ import {
 interface ProfilePageProps {
   onOpenRegister: () => void;
   onPlay: () => void;
+  onOpenArena?: () => void;
+  onLaunchMiniGame?: (gameId: GameModeId) => void;
   onOpenCreation: (creation: SavedCreation) => void;
   onOpenAutoEngineer: () => void;
   onOpenPhoneDesigner: () => void;
@@ -38,16 +50,36 @@ interface ProfilePageProps {
 export const ProfilePage: React.FC<ProfilePageProps> = ({
   onOpenRegister,
   onPlay,
+  onOpenArena,
+  onLaunchMiniGame,
   onOpenCreation,
   onOpenAutoEngineer,
   onOpenPhoneDesigner,
 }) => {
-  const { player, activeTheme, equipTheme, clearPlayerSession, setMusicMode, reportError } =
-    useArcade();
+  const {
+    player,
+    activeTheme,
+    equipTheme,
+    clearPlayerSession,
+    setMusicMode,
+    reportError,
+    graphicsQuality,
+    setGraphicsQuality,
+    soundEnabled,
+    toggleSound,
+    musicEnabled,
+    toggleMusic,
+    reducedMotion,
+    toggleReducedMotion,
+  } = useArcade();
   const userId = getGuestOrUserId(player?.id);
 
   const [history, setHistory] = useState<SubmissionRecord[]>([]);
   const [creations, setCreations] = useState<SavedCreation[]>([]);
+  const [personalBests, setPersonalBests] = useState<
+    Record<string, { bestScore: number; bestTimeMs: number; plays: number }>
+  >({});
+  const [favoriteGameId, setFavoriteGameId] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
@@ -66,6 +98,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   useEffect(() => {
     if (!player) {
       setHistory([]);
+      setPersonalBests({});
+      setFavoriteGameId(null);
       return;
     }
     setLoadingHistory(true);
@@ -80,6 +114,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         }
       })
       .finally(() => setLoadingHistory(false));
+
+    void safeFetchJson<{
+      personalBests?: Record<string, { bestScore: number; bestTimeMs: number; plays: number }>;
+      favoriteGameId?: string | null;
+    }>(`/api/playground/events?userId=${encodeURIComponent(player.id)}`).then((res) => {
+      if (res.ok && res.data) {
+        if (res.data.personalBests) setPersonalBests(res.data.personalBests);
+        setFavoriteGameId(res.data.favoriteGameId ?? null);
+      }
+    });
   }, [player, reportError]);
 
   const handleDeleteCreation = async (id: string) => {
@@ -89,6 +133,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   };
 
   const lvl = player ? computeLevelFromXp(player.xp) : null;
+  const favoriteDef = favoriteGameId ? getMiniGameDef(favoriteGameId as GameModeId) : null;
+  const totalPlaygroundPlays = Object.values(personalBests).reduce((acc, b) => acc + b.plays, 0);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 relative z-10 space-y-6">
@@ -104,7 +150,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 Guest Creator Studio
               </h1>
               <p className="text-sm text-[var(--studio-text-secondary)] mt-1 max-w-xl">
-                Sign in with your Name and Class to sync XP, earn achievement badges, unlock themes, and climb the global leaderboard.
+                Sign in with your Name and Class to sync XP across Level 1–50 ranks, save Personal Bests, earn badges, and climb global leaderboards.
               </p>
             </div>
           </div>
@@ -122,16 +168,21 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </div>
       ) : (
         <div className="studio-card p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div>
-            <div className="font-mono-tech text-xs font-bold text-[var(--studio-emerald-text)] mb-1 uppercase tracking-wider">
-              {player.className} · {player.gamesPlayed} Runs Completed
+          <div className="space-y-1.5">
+            <div className="font-mono-tech text-xs font-bold text-[var(--studio-emerald-text)] uppercase tracking-wider">
+              {player.className} · {player.gamesPlayed + totalPlaygroundPlays} Total Runs · {creations.length} Saved Builds
             </div>
-            <h1 className="font-heading font-bold text-2xl sm:text-3xl text-[var(--studio-text)] mb-1">
+            <h1 className="font-heading font-bold text-2xl sm:text-3xl text-[var(--studio-text)]">
               {player.name}
             </h1>
             <div className="font-mono-tech text-xs font-bold text-[var(--studio-accent-text)]">
               LEVEL {lvl.level} — {lvl.title.toUpperCase()}
             </div>
+            {favoriteDef && (
+              <div className="inline-flex items-center gap-1.5 text-xs font-sora font-semibold text-[var(--studio-cyan-text)] pt-1">
+                <Star size={14} /> Favorite Mini-Game: {favoriteDef.title} ({personalBests[favoriteDef.id]?.plays ?? 0} plays)
+              </div>
+            )}
           </div>
 
           <div className="w-full md:w-80">
@@ -162,6 +213,96 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </div>
         </div>
       )}
+
+      {/* SETTINGS & 3D GRAPHICS QUALITY */}
+      <div className="studio-card-solid p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-heading font-bold text-base text-[var(--studio-cyan-text)] flex items-center gap-2">
+            <Sliders size={17} /> Studio Performance &amp; Audio Preferences
+          </h2>
+          <span className="font-mono-tech text-xs text-[var(--studio-text-muted)]">
+            Persisted automatically on this device
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* 3D Graphics Quality */}
+          <div className="p-3.5 rounded-xl studio-well space-y-2 md:col-span-2">
+            <div className="flex items-center justify-between text-xs font-mono-tech font-bold">
+              <span className="text-[var(--studio-text)] flex items-center gap-1.5">
+                <Monitor size={14} className="text-[var(--studio-accent-text)]" /> 3D Graphics Quality (Car &amp; Phone CAD)
+              </span>
+              <span className="text-[var(--studio-cyan-text)] uppercase">{graphicsQuality}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(['low', 'medium', 'high'] as const).map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => {
+                    arcadeAudio.playSfx('click');
+                    setGraphicsQuality(q);
+                  }}
+                  className={`studio-btn text-xs py-2 capitalize ${
+                    graphicsQuality === q ? 'studio-btn-primary' : 'studio-btn-ghost'
+                  }`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => toggleSound()}
+            className="p-3.5 rounded-xl studio-well flex items-center justify-between gap-2 cursor-pointer hover:border-[var(--studio-accent-text)]"
+          >
+            <div className="text-left">
+              <div className="font-sora font-bold text-xs text-[var(--studio-text)] flex items-center gap-1.5">
+                <Volume2 size={14} className="text-[var(--studio-accent-text)]" /> Sound Effects
+              </div>
+              <div className="font-mono-tech text-[11px] text-[var(--studio-text-muted)]">
+                Clicks, scores &amp; victory cues
+              </div>
+            </div>
+            <span
+              className={`font-mono-tech text-xs font-bold px-2.5 py-1 rounded ${
+                soundEnabled ? 'bg-[#059669] text-white' : 'bg-[var(--studio-surface-2)] text-[var(--studio-text-muted)]'
+              }`}
+            >
+              {soundEnabled ? 'ON' : 'MUTED'}
+            </span>
+          </button>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => toggleMusic()}
+              className="p-3 rounded-xl studio-well flex flex-col justify-between gap-1 cursor-pointer hover:border-[var(--studio-accent-text)] text-left"
+            >
+              <span className="font-sora font-bold text-xs text-[var(--studio-text)] flex items-center gap-1">
+                <Music size={13} className="text-[var(--studio-purple-text)]" /> BGM
+              </span>
+              <span className="font-mono-tech text-xs font-bold text-[var(--studio-accent-text)]">
+                {musicEnabled ? 'ON' : 'OFF'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleReducedMotion()}
+              className="p-3 rounded-xl studio-well flex flex-col justify-between gap-1 cursor-pointer hover:border-[var(--studio-accent-text)] text-left"
+            >
+              <span className="font-sora font-bold text-xs text-[var(--studio-text)]">
+                Motion
+              </span>
+              <span className="font-mono-tech text-xs font-bold text-[var(--studio-amber-text)]">
+                {reducedMotion ? 'REDUCED' : 'FULL'}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* MY CREATIONS: SAVED 3D CARS & NEXT iPHONE CONCEPTS */}
       <div className="studio-card-solid p-6 space-y-4">
@@ -263,9 +404,87 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         )}
       </div>
 
-      {/* Signed-In Details: Themes, Achievements, History */}
+      {/* Signed-In Details: Level 1-50 Milestones, Personal Bests, Themes, Achievements, History */}
       {player && lvl && (
         <>
+          {/* Level 1-50 Milestone Progression Roadmap */}
+          <div className="studio-card-solid p-6 space-y-4">
+            <h2 className="font-heading font-bold text-base text-[var(--studio-emerald-text)] flex items-center gap-2">
+              <Trophy size={17} /> Level 1–50 Engineering Progression Milestones
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {PROGRESSION_MILESTONES.map((m) => {
+                const unlocked = lvl.level >= m.level;
+                return (
+                  <div
+                    key={m.level}
+                    className={`p-4 rounded-xl border-2 ${
+                      unlocked ? 'studio-well border-[#10B981]' : 'studio-well opacity-65'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 font-mono-tech text-xs font-bold">
+                      <span className="text-[var(--studio-accent-text)]">LEVEL {m.level}</span>
+                      <span className="text-[var(--studio-amber-text)]">{m.minXp.toLocaleString()} XP</span>
+                    </div>
+                    <div className="font-heading font-bold text-base text-[var(--studio-text)] mt-1">
+                      {m.title}
+                    </div>
+                    <p className="text-xs text-[var(--studio-text-secondary)] mt-0.5">{m.reward}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Personal Bests Across 12 Mini-Games */}
+          <div className="studio-card-solid p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-heading font-bold text-base text-[var(--studio-cyan-text)] flex items-center gap-2">
+                <Gamepad2 size={17} /> Personal Bests — 12 Engineering Mini-Games
+              </h2>
+              {onOpenArena && (
+                <button
+                  type="button"
+                  onClick={onOpenArena}
+                  className="studio-btn studio-btn-ghost text-xs px-3 py-1.5"
+                >
+                  Open Playground Hub
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {PLAYGROUND_MINIGAMES.map((mg) => {
+                const pb = personalBests[mg.id];
+                return (
+                  <div
+                    key={mg.id}
+                    className="p-3.5 rounded-xl studio-well flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-sora font-bold text-xs text-[var(--studio-text)] truncate">
+                        {mg.title}
+                      </div>
+                      <div className="font-mono-tech text-[11px] text-[var(--studio-text-muted)]">
+                        {pb
+                          ? `Best: ${pb.bestScore} pts · ${(pb.bestTimeMs / 1000).toFixed(1)}s · ${pb.plays} plays`
+                          : 'No runs yet'}
+                      </div>
+                    </div>
+                    {onLaunchMiniGame && (
+                      <button
+                        type="button"
+                        onClick={() => onLaunchMiniGame(mg.id)}
+                        className="studio-btn studio-btn-primary text-[11px] px-2.5 py-1.5 min-h-[30px] shrink-0"
+                      >
+                        <Play size={12} fill="currentColor" /> Play
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="studio-card-solid p-6 space-y-4">
             <h2 className="font-heading font-bold text-base text-[var(--studio-accent-text)] flex items-center gap-2">
               <Palette size={17} /> Unlockable Lab Palettes

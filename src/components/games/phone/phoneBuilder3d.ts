@@ -66,8 +66,12 @@ function createScreenTexture(state: PhoneDesignState, maxAniso: number): THREE.C
   canvas.height = 1024;
   const ctx = canvas.getContext('2d');
   if (ctx) {
+    const awake = state.screenAwake !== false;
     const grad = ctx.createLinearGradient(0, 0, 512, 1024);
-    if (state.wallpaperId === 'aurora-prism') {
+    if (!awake) {
+      grad.addColorStop(0, '#02040A');
+      grad.addColorStop(1, '#070D19');
+    } else if (state.wallpaperId === 'aurora-prism') {
       grad.addColorStop(0, '#0F172A');
       grad.addColorStop(0.5, '#6D28D9');
       grad.addColorStop(1, '#06B6D4');
@@ -248,7 +252,12 @@ function tagInteractive(
 
 export function buildPhoneGroup(
   rawState: PhoneDesignState,
-  opts: { isSoftwareGl: boolean; maxAnisotropy: number }
+  opts: {
+    isSoftwareGl: boolean;
+    maxAnisotropy: number;
+    flashPulse?: boolean;
+    chargingActive?: boolean;
+  }
 ): PhoneRigHandles {
   const state = normalizePhoneState(rawState);
   const installed = new Set<PhoneBayId>(state.installedBays?.length ? state.installedBays : ASSEMBLY_SEQUENCE);
@@ -333,22 +342,24 @@ export function buildPhoneGroup(
     const scrShape = makeRoundedRectShape(width - 0.048, height - 0.048, cornerR * 0.85);
     const scrGeo = new THREE.ShapeGeometry(scrShape, 14);
     const screenTex = createScreenTexture(state, opts.maxAnisotropy);
-    const screenMat = new THREE.MeshStandardMaterial({
-      map: screenTex,
-      roughness: 0.18,
-      metalness: 0.08,
-      emissive: new THREE.Color('#0B1D3A'),
-      emissiveIntensity: 0.35,
-    });
-    // Adjust UVs to 0..1 across rounded screen shape
-    const pos = scrGeo.attributes.position;
-    const uv = scrGeo.attributes.uv;
-    const sw = width - 0.048;
-    const sh = height - 0.048;
-    for (let i = 0; i < pos.count; i++) {
-      uv.setXY(i, (pos.getX(i) + sw / 2) / sw, (pos.getY(i) + sh / 2) / sh);
+    const screenMesh = new THREE.Mesh(
+      scrGeo,
+      new THREE.MeshStandardMaterial({
+        map: screenTex,
+        roughness: 0.18,
+        metalness: 0.08,
+        emissive: new THREE.Color(state.screenAwake !== false ? '#0B1D3A' : '#020617'),
+        emissiveIntensity: state.screenAwake !== false ? 0.35 : 0.08,
+      })
+    );
+    // Re-sync UVs immediately below on scrGeo before using
+    const tmpPos = scrGeo.attributes.position;
+    const tmpUv = scrGeo.attributes.uv;
+    const tmpW = width - 0.048;
+    const tmpH = height - 0.048;
+    for (let i = 0; i < tmpPos.count; i++) {
+      tmpUv.setXY(i, (tmpPos.getX(i) + tmpW / 2) / tmpW, (tmpPos.getY(i) + tmpH / 2) / tmpH);
     }
-    const screenMesh = new THREE.Mesh(scrGeo, screenMat);
     screenMesh.position.z = 0.008;
     displayGroup.add(screenMesh);
 
@@ -756,6 +767,62 @@ export function buildPhoneGroup(
   bayGroups.backPanel = rearPanelGroup;
   root.add(rearPanelGroup);
   explodables.push({ obj: rearPanelGroup, baseZ: rearZ, explodeZ: rearZ - 0.95, isRearPanel: true });
+
+  // Optional Protective Case Shell & Flash / Charging Visual Feedback
+  if (state.caseStyle && state.caseStyle !== 'none') {
+    const caseColor =
+      state.caseStyle === 'clear'
+        ? '#E2E8F0'
+        : state.caseStyle === 'silicone'
+          ? '#0EA5E9'
+          : state.caseStyle === 'carbon'
+            ? '#1E293B'
+            : '#D97706';
+    const caseShape = makeHollowFrameShape(
+      width + 0.045,
+      height + 0.045,
+      cornerR * 1.08,
+      state.caseStyle === 'rugged' ? 0.055 : 0.036
+    );
+    const caseGeo = new THREE.ExtrudeGeometry(caseShape, {
+      depth: depth + 0.025,
+      bevelEnabled: true,
+      bevelThickness: 0.008,
+      bevelSize: 0.008,
+      bevelSegments: 2,
+      curveSegments: 12,
+    });
+    caseGeo.translate(0, 0, -(depth + 0.025) / 2);
+    const caseMesh = new THREE.Mesh(
+      caseGeo,
+      new THREE.MeshPhysicalMaterial({
+        color: caseColor,
+        roughness: state.caseStyle === 'clear' ? 0.12 : 0.65,
+        metalness: state.caseStyle === 'carbon' ? 0.45 : 0.08,
+        transparent: state.caseStyle === 'clear',
+        opacity: state.caseStyle === 'clear' ? 0.48 : 0.96,
+      })
+    );
+    rearPanelGroup.add(caseMesh);
+  }
+
+  if (opts.flashPulse) {
+    const led = new THREE.Mesh(
+      new THREE.SphereGeometry(0.032, 14, 14),
+      new THREE.MeshBasicMaterial({ color: '#FEF9C3' })
+    );
+    led.position.set(-width * 0.06, height * 0.32, -depth / 2 - 0.028);
+    camGroup.add(led);
+  }
+
+  if (opts.chargingActive) {
+    const chgLed = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.02, 0.02),
+      new THREE.MeshBasicMaterial({ color: '#10B981' })
+    );
+    chgLed.position.set(0, -height / 2 - 0.015, 0);
+    powerGroup.add(chgLed);
+  }
 
   return {
     root,

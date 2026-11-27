@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Activity,
   Award,
   Crown,
   Drum,
@@ -8,6 +9,7 @@ import {
   Trophy,
   Volume2,
 } from 'lucide-react';
+import { PLAYGROUND_MINIGAMES } from '../../shared/progression.ts';
 import {
   CLASS_OPTIONS,
   type AnalyticsSummary,
@@ -15,6 +17,8 @@ import {
   type GameLeaderboardEntry,
   type GameLeaderboardView,
   type LeaderboardEntry,
+  type LeaderboardTimeframe,
+  type PlaygroundLeaderboardEntry,
 } from '../../shared/types.ts';
 import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { AnimatedPodium } from '../components/quiz/AnimatedPodium.tsx';
@@ -22,6 +26,7 @@ import { useArcade } from '../context/ArcadeContext.tsx';
 import { safeFetchJson } from '../utils/apiClient.ts';
 
 interface LeaderboardPageProps {
+  initialPlaygroundGameId?: string;
   onPlayCompete: () => void;
 }
 
@@ -41,16 +46,44 @@ interface GameLeaderboardApiResponse {
   currentUserEntry: GameLeaderboardEntry | null;
 }
 
-export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete }) => {
+interface PlaygroundLeaderboardApiResponse {
+  gameId: string;
+  timeframe: LeaderboardTimeframe;
+  totalPlayers: number;
+  top3: PlaygroundLeaderboardEntry[];
+  entries: PlaygroundLeaderboardEntry[];
+  currentUserEntry: PlaygroundLeaderboardEntry | null;
+}
+
+const TRACK_LAB_GAMES: Array<{ id: string; title: string }> = [
+  { id: 'car-test-0-100', title: 'Car Track: 0–100 km/h Sprint' },
+  { id: 'car-test-topspeed', title: 'Car Track: Top Speed Run' },
+  { id: 'car-test-braking', title: 'Car Track: 100–0 Braking Test' },
+  { id: 'car-test-slalom', title: 'Car Track: Cornering & Slalom' },
+  { id: 'car-test-drag', title: 'Car Track: Drag Race vs AI' },
+  { id: 'phone-test-lab', title: 'Phone Test Lab: 200-Pt Challenge' },
+];
+
+export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({
+  initialPlaygroundGameId,
+  onPlayCompete,
+}) => {
   const { player, examUserId, setMusicMode, reportError } = useArcade();
 
   const [hallView, setHallView] = useState<'rankings' | 'vault'>('rankings');
-  const [boardTab, setBoardTab] = useState<'highest' | 'overall' | 'simulators' | 'arcade'>('highest');
+  const [boardTab, setBoardTab] = useState<
+    'playground' | 'highest' | 'overall' | 'simulators' | 'arcade'
+  >(initialPlaygroundGameId ? 'playground' : 'highest');
+  const [pgGameId, setPgGameId] = useState<string>(initialPlaygroundGameId || 'all');
+  const [timeframe, setTimeframe] = useState<LeaderboardTimeframe>('global');
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [diffFilter, setDiffFilter] = useState<'all' | GameDifficultyId>('all');
   const [simFilter, setSimFilter] = useState<'all' | 'car' | 'phone'>('all');
   const [className, setClassName] = useState<string>('all');
   const [search, setSearch] = useState('');
 
+  const [pgBoard, setPgBoard] = useState<PlaygroundLeaderboardApiResponse | null>(null);
+  const [pgUnavailable, setPgUnavailable] = useState(false);
   const [gameBoard, setGameBoard] = useState<GameLeaderboardApiResponse | null>(null);
   const [arcadeRows, setArcadeRows] = useState<LeaderboardEntry[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
@@ -61,58 +94,106 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
     setMusicMode('trophy');
   }, [setMusicMode]);
 
-  const loadLeaderboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const aRes = await safeFetchJson<AnalyticsSummary>(
-        `/api/exam/analytics?userId=${encodeURIComponent(examUserId)}&range=all`
-      );
-      if (aRes.ok && aRes.data) setAnalytics(aRes.data);
-
-      if (boardTab === 'arcade') {
-        const qs = new URLSearchParams({ tab: 'arcade', className, search });
-        const res = await safeFetchJson<{ entries?: LeaderboardEntry[] }>(
-          `/api/leaderboard?${qs.toString()}`
-        );
-        if (res.ok && res.data && Array.isArray(res.data.entries)) {
-          setArcadeRows(res.data.entries);
-        }
-      } else if (boardTab === 'simulators') {
-        const qs = new URLSearchParams({
-          simulator: simFilter,
-          search,
-          userId: player?.id || '',
-        });
-        const res = await safeFetchJson<GameLeaderboardApiResponse>(
-          `/api/simulator/leaderboard?${qs.toString()}`
-        );
-        if (res.ok && res.data) {
-          setGameBoard(res.data);
-        }
-      } else {
-        const qs = new URLSearchParams({
-          view: boardTab,
-          difficulty: diffFilter,
-          search,
-          userId: player?.id || '',
-        });
-        const res = await safeFetchJson<GameLeaderboardApiResponse>(
-          `/api/game/leaderboard?${qs.toString()}`
-        );
-        if (res.ok && res.data) {
-          setGameBoard(res.data);
-        }
-      }
-    } catch (err) {
-      reportError(String(err));
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (initialPlaygroundGameId) {
+      setBoardTab('playground');
+      setPgGameId(initialPlaygroundGameId);
+      setHallView('rankings');
     }
-  }, [boardTab, className, diffFilter, examUserId, player?.id, reportError, search, simFilter]);
+  }, [initialPlaygroundGameId]);
+
+  const loadLeaderboard = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const aRes = await safeFetchJson<AnalyticsSummary>(
+          `/api/exam/analytics?userId=${encodeURIComponent(examUserId)}&range=all`
+        );
+        if (aRes.ok && aRes.data) setAnalytics(aRes.data);
+
+        if (boardTab === 'playground') {
+          const qs = new URLSearchParams({
+            gameId: pgGameId,
+            timeframe,
+            search,
+            userId: player?.id || '',
+          });
+          const res = await safeFetchJson<PlaygroundLeaderboardApiResponse>(
+            `/api/playground/leaderboard?${qs.toString()}`
+          );
+          if (res.ok && res.data) {
+            setPgBoard(res.data);
+            setPgUnavailable(false);
+          } else {
+            setPgUnavailable(true);
+          }
+        } else if (boardTab === 'arcade') {
+          const qs = new URLSearchParams({ tab: 'arcade', className, search });
+          const res = await safeFetchJson<{ entries?: LeaderboardEntry[] }>(
+            `/api/leaderboard?${qs.toString()}`
+          );
+          if (res.ok && res.data && Array.isArray(res.data.entries)) {
+            setArcadeRows(res.data.entries);
+          }
+        } else if (boardTab === 'simulators') {
+          const qs = new URLSearchParams({
+            simulator: simFilter,
+            search,
+            userId: player?.id || '',
+          });
+          const res = await safeFetchJson<GameLeaderboardApiResponse>(
+            `/api/simulator/leaderboard?${qs.toString()}`
+          );
+          if (res.ok && res.data) {
+            setGameBoard(res.data);
+          }
+        } else {
+          const qs = new URLSearchParams({
+            view: boardTab,
+            difficulty: diffFilter,
+            search,
+            userId: player?.id || '',
+          });
+          const res = await safeFetchJson<GameLeaderboardApiResponse>(
+            `/api/game/leaderboard?${qs.toString()}`
+          );
+          if (res.ok && res.data) {
+            setGameBoard(res.data);
+          }
+        }
+      } catch (err) {
+        if (boardTab === 'playground') setPgUnavailable(true);
+        reportError(String(err));
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [
+      boardTab,
+      className,
+      diffFilter,
+      examUserId,
+      pgGameId,
+      player?.id,
+      reportError,
+      search,
+      simFilter,
+      timeframe,
+    ]
+  );
 
   useEffect(() => {
-    void loadLeaderboard();
+    void loadLeaderboard(false);
   }, [loadLeaderboard]);
+
+  // Silent live auto-refresh every 15s (never reloads full page!)
+  useEffect(() => {
+    if (!autoRefresh || hallView !== 'rankings') return;
+    const id = window.setInterval(() => {
+      void loadLeaderboard(true);
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, [autoRefresh, hallView, loadLeaderboard]);
 
   const totalXp = (analytics?.streaks.examXp ?? 0) + (player?.xp ?? 0);
   const totalRuns = (analytics?.totalQuizzes ?? 0) + (player?.gamesPlayed ?? 0);
@@ -142,7 +223,23 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
 
   const earnedCount = trophies.filter((t) => t.earned).length;
 
-  // Map arcade rows for podium when Arcade Mini-Games tab is selected
+  const toPodiumFromPlayground = (e: PlaygroundLeaderboardEntry): GameLeaderboardEntry => ({
+    rank: e.rank,
+    userId: e.userId,
+    username: e.username,
+    className: `${e.className} · LVL ${e.level}`,
+    title: e.title,
+    score: e.score,
+    bestScore: e.bestScore,
+    totalPoints: e.totalPoints,
+    gamesPlayed: e.gamesPlayed,
+    accuracy: Math.round(e.accuracy),
+    completionTime: Math.round(e.completionTimeMs / 1000),
+    difficulty: e.gameId,
+    category: timeframe,
+    createdAt: e.createdAt,
+  });
+
   const arcadeTop3: GameLeaderboardEntry[] = arcadeRows.slice(0, 3).map((e, i) => ({
     rank: i + 1,
     userId: e.playerId,
@@ -160,10 +257,28 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
     createdAt: '',
   }));
 
-  const activeTop3 = boardTab === 'arcade' ? arcadeTop3 : gameBoard?.top3 || [];
-  const activeCurrentEntry = boardTab === 'arcade' ? null : gameBoard?.currentUserEntry || null;
+  const activeTop3 =
+    boardTab === 'playground'
+      ? (pgBoard?.top3 || []).map(toPodiumFromPlayground)
+      : boardTab === 'arcade'
+        ? arcadeTop3
+        : gameBoard?.top3 || [];
+
+  const activeCurrentEntry =
+    boardTab === 'playground'
+      ? pgBoard?.currentUserEntry
+        ? toPodiumFromPlayground(pgBoard.currentUserEntry)
+        : null
+      : boardTab === 'arcade'
+        ? null
+        : gameBoard?.currentUserEntry || null;
+
   const activeTotalPlayers =
-    boardTab === 'arcade' ? arcadeRows.length : gameBoard?.totalPlayers || 0;
+    boardTab === 'playground'
+      ? pgBoard?.totalPlayers || 0
+      : boardTab === 'arcade'
+        ? arcadeRows.length
+        : gameBoard?.totalPlayers || 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -190,15 +305,25 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
+              onClick={() => setAutoRefresh((v) => !v)}
+              className={`studio-btn text-xs px-3 ${
+                autoRefresh ? 'studio-btn-emerald' : 'studio-btn-ghost'
+              }`}
+              title="Toggle 15-second live polling without page reload"
+            >
+              <Activity size={14} /> {autoRefresh ? 'Live 15s ON' : 'Live OFF'}
+            </button>
+            <button
+              type="button"
               onClick={() => arcadeAudio.playSfx('drumRoll')}
-              className="studio-btn studio-btn-ghost text-xs px-3.5"
+              className="studio-btn studio-btn-ghost text-xs px-3"
             >
               <Drum size={14} className="text-[var(--studio-amber-text)]" /> Drum Roll
             </button>
             <button
               type="button"
               onClick={() => arcadeAudio.playSfx('airhorn')}
-              className="studio-btn studio-btn-ghost text-xs px-3.5"
+              className="studio-btn studio-btn-ghost text-xs px-3"
             >
               <Volume2 size={14} className="text-[var(--studio-accent-text)]" /> Fanfare
             </button>
@@ -248,10 +373,11 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
         <div className="flex flex-wrap gap-2">
           {(
             [
-              { id: 'highest', label: 'Highest Single Score' },
+              { id: 'playground', label: '12 Mini-Games & Track' },
+              { id: 'highest', label: 'Highest Quiz Score' },
               { id: 'overall', label: 'Overall Performance' },
-              { id: 'simulators', label: 'Engineering Simulators' },
-              { id: 'arcade', label: 'Mini-Games' },
+              { id: 'simulators', label: '3D Missions' },
+              { id: 'arcade', label: 'Classic Labs' },
             ] as const
           ).map((t) => (
             <button
@@ -278,26 +404,40 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
           <div>
             <h2 className="font-heading font-bold text-lg sm:text-xl text-[var(--studio-text)] flex items-center gap-2">
               <Crown size={19} className="text-[var(--studio-amber-text)]" />
-              {boardTab === 'highest'
-                ? 'Top 3 — Highest Single Score'
-                : boardTab === 'overall'
-                  ? 'Top 3 — Overall Performance (Total Points)'
-                  : boardTab === 'simulators'
-                    ? 'Top 3 — 3D Engineering Simulators'
-                    : 'Top 3 — Arcade Mini-Games'}
+              {boardTab === 'playground'
+                ? `Top 3 — ${
+                    pgGameId === 'all'
+                      ? 'Playground Cumulative'
+                      : PLAYGROUND_MINIGAMES.find((g) => g.id === pgGameId)?.title ||
+                        TRACK_LAB_GAMES.find((t) => t.id === pgGameId)?.title ||
+                        pgGameId
+                  } (${timeframe})`
+                : boardTab === 'highest'
+                  ? 'Top 3 — Highest Single Score'
+                  : boardTab === 'overall'
+                    ? 'Top 3 — Overall Performance (Total Points)'
+                    : boardTab === 'simulators'
+                      ? 'Top 3 — 3D Engineering Simulators'
+                      : 'Top 3 — Classic Arcade Mini-Games'}
             </h2>
-            {boardTab !== 'arcade' && gameBoard?.rankingMethodDescription && (
+            {boardTab === 'playground' ? (
+              <p className="text-xs text-[var(--studio-text-secondary)] mt-0.5">
+                {pgGameId === 'all'
+                  ? 'Ranked by total verified score across all 12 mini-games, 3D Track runs, and Phone Test Lab.'
+                  : 'Ranked by best verified single-run score (ties broken by faster completion time & accuracy).'}
+              </p>
+            ) : boardTab !== 'arcade' && gameBoard?.rankingMethodDescription ? (
               <p className="text-xs text-[var(--studio-text-secondary)] mt-0.5">
                 {gameBoard.rankingMethodDescription}
               </p>
-            )}
+            ) : null}
           </div>
 
           <button
             type="button"
             onClick={() => {
               arcadeAudio.playSfx('click');
-              void loadLeaderboard();
+              void loadLeaderboard(false);
             }}
             className="studio-btn studio-btn-ghost text-xs px-3 py-1.5 min-h-[34px]"
           >
@@ -309,9 +449,13 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
           top3={activeTop3}
           currentUserId={player?.id}
           currentUserEntry={activeCurrentEntry}
-          metricLabel={boardTab === 'overall' ? 'Total Points' : 'Best Score'}
+          metricLabel={
+            boardTab === 'overall' || (boardTab === 'playground' && pgGameId === 'all')
+              ? 'Total Points'
+              : 'Best Score'
+          }
           totalPlayers={activeTotalPlayers}
-          emptyActionLabel="Play First Quiz Match"
+          emptyActionLabel="Play First Challenge"
           onEmptyAction={onPlayCompete}
         />
       </section>
@@ -375,7 +519,7 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
       ) : (
         <section className="space-y-4">
           {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col md:flex-row gap-3">
             <input
               type="text"
               value={search}
@@ -384,7 +528,50 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
               className="studio-input flex-1 px-3.5 py-2 text-sm"
             />
 
-            {boardTab === 'arcade' ? (
+            {boardTab === 'playground' ? (
+              <>
+                <select
+                  value={pgGameId}
+                  onChange={(e) => setPgGameId(e.target.value)}
+                  aria-label="Filter by playground game"
+                  className="studio-input px-3 py-2 text-sm"
+                >
+                  <option value="all">All Playground Games (Cumulative)</option>
+                  <optgroup label="12 Interactive Mini-Games">
+                    {PLAYGROUND_MINIGAMES.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="3D Track & Phone Lab">
+                    {TRACK_LAB_GAMES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+
+                <div className="flex gap-1.5">
+                  {(['global', 'daily', 'weekly', 'monthly'] as const).map((tf) => (
+                    <button
+                      key={tf}
+                      type="button"
+                      onClick={() => {
+                        arcadeAudio.playSfx('click');
+                        setTimeframe(tf);
+                      }}
+                      className={`studio-btn text-xs px-3 py-2 uppercase ${
+                        timeframe === tf ? 'studio-btn-primary' : 'studio-btn-ghost'
+                      }`}
+                    >
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : boardTab === 'arcade' ? (
               <select
                 value={className}
                 onChange={(e) => setClassName(e.target.value)}
@@ -429,6 +616,109 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
             <div className="studio-card-solid p-8 text-center font-mono-tech text-xs font-bold text-[var(--studio-accent-text)]">
               Loading verified rankings from database...
             </div>
+          ) : boardTab === 'playground' ? (
+            pgUnavailable ? (
+              <div className="studio-card-solid p-8 text-center space-y-3">
+                <div className="font-heading font-bold text-lg text-[var(--studio-rose-text)]">
+                  Leaderboard data unavailable right now.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadLeaderboard(false)}
+                  className="studio-btn studio-btn-ghost text-xs px-4"
+                >
+                  Retry Load
+                </button>
+              </div>
+            ) : !pgBoard || pgBoard.entries.length === 0 ? (
+              <div className="studio-card-solid p-8 text-center space-y-4">
+                <Trophy size={40} className="mx-auto text-[var(--studio-amber-text)]" />
+                <div className="font-heading font-bold text-lg text-[var(--studio-text)]">
+                  No scores recorded yet
+                </div>
+                <p className="text-sm text-[var(--studio-text-secondary)]">
+                  No verified playground runs found for this game and timeframe. Play any mini-game or 3D track test to claim #1!
+                </p>
+                <button type="button" onClick={onPlayCompete} className="studio-btn studio-btn-primary text-xs">
+                  Start Playing
+                </button>
+              </div>
+            ) : (
+              <div className="studio-card-solid overflow-x-auto">
+                <table className="w-full text-left text-sm tabular-nums">
+                  <thead>
+                    <tr className="border-b border-[var(--studio-border)] font-mono-tech text-xs text-[var(--studio-text-muted)]">
+                      <th className="py-3 px-4">RANK</th>
+                      <th className="py-3 px-4">ENGINEER</th>
+                      <th className="py-3 px-4 hidden sm:table-cell">LEVEL</th>
+                      <th className="py-3 px-4 text-right hidden md:table-cell">WIN RATE</th>
+                      <th className="py-3 px-4 text-right">
+                        {pgGameId === 'all' ? 'TOTAL PTS' : 'BEST SCORE'}
+                      </th>
+                      <th className="py-3 px-4 text-right">ACC</th>
+                      <th className="py-3 px-4 text-right hidden sm:table-cell">BEST TIME</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pgBoard.entries.map((entry) => {
+                      const isMe = Boolean(player?.id && entry.userId === player.id);
+                      const delta = entry.rankDelta ?? 0;
+                      return (
+                        <tr
+                          key={entry.userId}
+                          className={`border-b border-[var(--studio-border)] last:border-0 ${
+                            isMe ? 'bg-[var(--studio-surface-2)]' : ''
+                          }`}
+                        >
+                          <td className="py-3 px-4 font-mono-tech text-xs font-bold text-[var(--studio-amber-text)] whitespace-nowrap">
+                            {entry.rank === 1
+                              ? '🥇 #1'
+                              : entry.rank === 2
+                                ? '🥈 #2'
+                                : entry.rank === 3
+                                  ? '🥉 #3'
+                                  : `#${entry.rank}`}
+                            {delta > 0 && (
+                              <span className="ml-1.5 text-[10px] text-[var(--studio-emerald-text)]">
+                                ↑{delta}
+                              </span>
+                            )}
+                            {delta < 0 && (
+                              <span className="ml-1.5 text-[10px] text-[var(--studio-rose-text)]">
+                                ↓{Math.abs(delta)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-sora font-bold text-[var(--studio-text)]">
+                              {entry.username} {isMe ? '★ (You)' : ''}
+                            </div>
+                            <div className="text-xs text-[var(--studio-text-muted)]">
+                              {entry.className} · {entry.gamesPlayed} {entry.gamesPlayed === 1 ? 'run' : 'runs'}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 hidden sm:table-cell font-mono-tech text-xs text-[var(--studio-accent-text)]">
+                            LVL {entry.level} · {entry.title}
+                          </td>
+                          <td className="py-3 px-4 text-right hidden md:table-cell font-mono-tech text-xs font-bold text-[var(--studio-cyan-text)]">
+                            {entry.winRate}%
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono-tech text-sm font-bold text-[var(--studio-emerald-text)]">
+                            {entry.score} pts
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono-tech text-xs font-bold text-[var(--studio-text)]">
+                            {entry.accuracy}%
+                          </td>
+                          <td className="py-3 px-4 text-right hidden sm:table-cell font-mono-tech text-xs text-[var(--studio-text-muted)]">
+                            {(entry.completionTimeMs / 1000).toFixed(1)}s
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
           ) : boardTab === 'arcade' ? (
             arcadeRows.length === 0 ? (
               <div className="studio-card-solid p-8 text-center space-y-4">

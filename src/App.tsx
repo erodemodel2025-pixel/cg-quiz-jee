@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArcadeProvider, useArcade } from './context/ArcadeContext.tsx';
 import { HowToPlayModal } from './components/pixel/HowToPlayModal.tsx';
-import { TopNav, type AppRoute } from './components/TopNav.tsx';
+import { TopNav, type AppRoute, type ArenaFilterTab } from './components/TopNav.tsx';
 import { RegisterModal } from './components/RegisterModal.tsx';
 import { PixelCelebration } from './components/PixelCelebration.tsx';
 import { DevConsoleModal } from './components/DevConsoleModal.tsx';
@@ -24,9 +24,23 @@ import { BossBattleGame } from './components/games/BossBattleGame.tsx';
 import { LogicLabGame } from './components/games/LogicLabGame.tsx';
 import { ComponentMatchGame } from './components/games/ComponentMatchGame.tsx';
 import { AutoEngineerGame } from './components/games/auto/AutoEngineerGame.tsx';
+import type { TrackLabMode } from './components/games/auto/CarTestDriveLab.tsx';
 import type { CarBuildConfig } from './components/games/auto/carCatalog.ts';
 import { PhoneDesignerGame } from './components/games/phone/PhoneDesignerGame.tsx';
 import type { PhoneDesignState } from './components/games/phone/phoneCatalog.ts';
+import { ReactionTestGame } from './components/games/minigames/ReactionTestGame.tsx';
+import { CircuitConnectGame } from './components/games/minigames/CircuitConnectGame.tsx';
+import { EngineeringBalanceGame } from './components/games/minigames/EngineeringBalanceGame.tsx';
+import { RobotControlGame } from './components/games/minigames/RobotControlGame.tsx';
+import { MemoryCircuitGame } from './components/games/minigames/MemoryCircuitGame.tsx';
+import { TechAssemblyGame } from './components/games/minigames/TechAssemblyGame.tsx';
+import { DroneLandingGame } from './components/games/minigames/DroneLandingGame.tsx';
+import { BridgeBuilderGame } from './components/games/minigames/BridgeBuilderGame.tsx';
+import { GearMachineGame } from './components/games/minigames/GearMachineGame.tsx';
+import { SortTheCircuitGame } from './components/games/minigames/SortTheCircuitGame.tsx';
+import { RocketBalanceGame } from './components/games/minigames/RocketBalanceGame.tsx';
+import { EngineeringSpeedRunGame } from './components/games/minigames/EngineeringSpeedRunGame.tsx';
+import type { MiniGameComponentProps } from './components/games/minigames/types.ts';
 import type { ExamSettings, GameModeId, QuizMode, SavedCreation } from '../shared/types.ts';
 import type { ActiveQuizDraft } from './utils/storageMigration.ts';
 
@@ -42,9 +56,25 @@ const DEFAULT_SETTINGS: ExamSettings = {
   negativeMarking: 0,
 };
 
+const NEW_MINIGAME_MAP: Partial<Record<GameModeId, React.FC<MiniGameComponentProps>>> = {
+  'reaction-test': ReactionTestGame,
+  'circuit-connect': CircuitConnectGame,
+  'engineering-balance': EngineeringBalanceGame,
+  'robot-control': RobotControlGame,
+  'memory-circuit': MemoryCircuitGame,
+  'tech-assembly': TechAssemblyGame,
+  'drone-landing': DroneLandingGame,
+  'bridge-builder': BridgeBuilderGame,
+  'gear-machine': GearMachineGame,
+  'sort-circuit': SortTheCircuitGame,
+  'rocket-balance': RocketBalanceGame,
+  'engineering-speedrun': EngineeringSpeedRunGame,
+};
+
 function ArcadeShell() {
   const { reportError } = useArcade();
   const [route, setRoute] = useState<AppRoute>('home');
+  const [arenaFilter, setArenaFilter] = useState<ArenaFilterTab>('all');
   const [activeGame, setActiveGame] = useState<GameModeId | null>(null);
   const [iqMode, setIqMode] = useState<QuizMode>('practice');
   const [activeExamSettings, setActiveExamSettings] = useState<ExamSettings | null>(null);
@@ -56,6 +86,9 @@ function ArcadeShell() {
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   const [loadedCreation, setLoadedCreation] = useState<SavedCreation | null>(null);
+  const [initialCarTrackMode, setInitialCarTrackMode] = useState<TrackLabMode | null>(null);
+  const [initialPhoneTestLab, setInitialPhoneTestLab] = useState(false);
+  const [leaderboardGameId, setLeaderboardGameId] = useState<string | undefined>(undefined);
 
   const navigate = (next: AppRoute) => {
     setActiveGame(null);
@@ -64,8 +97,26 @@ function ArcadeShell() {
     setResumedDraft(null);
     if (next !== 'auto-engineer' && next !== 'phone-designer') {
       setLoadedCreation(null);
+      setInitialCarTrackMode(null);
+      setInitialPhoneTestLab(false);
+    }
+    if (next !== 'leaderboard') {
+      setLeaderboardGameId(undefined);
     }
     setRoute(next);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const navigateArena = (filter: ArenaFilterTab) => {
+    setArenaFilter(filter);
+    navigate('arcade');
+  };
+
+  const openPlaygroundLeaderboard = (gameId?: string) => {
+    setLeaderboardGameId(gameId || 'all');
+    setActiveGame(null);
+    setActiveExamSettings(null);
+    setRoute('leaderboard');
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
@@ -73,6 +124,9 @@ function ArcadeShell() {
     setActiveExamSettings(null);
     setResumedDraft(null);
     setLoadedCreation(null);
+    setInitialCarTrackMode(null);
+    setInitialPhoneTestLab(false);
+
     if (game === 'auto-engineer') {
       setActiveGame(null);
       setRoute('auto-engineer');
@@ -91,9 +145,27 @@ function ArcadeShell() {
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
+  const openSimulator = (sim: 'car-track' | 'car-dyno' | 'car-drag' | 'phone-lab') => {
+    setActiveGame(null);
+    setActiveExamSettings(null);
+    setLoadedCreation(null);
+    if (sim === 'phone-lab') {
+      setInitialCarTrackMode(null);
+      setInitialPhoneTestLab(true);
+      setRoute('phone-designer');
+    } else {
+      setInitialPhoneTestLab(false);
+      setInitialCarTrackMode(sim === 'car-dyno' ? 'dyno' : sim === 'car-drag' ? 'drag' : '0-100');
+      setRoute('auto-engineer');
+    }
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
   const openCreationInStudio = (creation: SavedCreation) => {
     setActiveGame(null);
     setActiveExamSettings(null);
+    setInitialCarTrackMode(null);
+    setInitialPhoneTestLab(false);
     setLoadedCreation(creation);
     setRoute(creation.type === 'car' ? 'auto-engineer' : 'phone-designer');
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -123,13 +195,16 @@ function ArcadeShell() {
   };
 
   const isFullscreenStudio = route === 'auto-engineer' || route === 'phone-designer';
+  const ActiveNewMiniGame = activeGame ? NEW_MINIGAME_MAP[activeGame] : undefined;
 
   return (
     <div className="min-h-screen flex flex-col relative bg-[var(--studio-bg)] text-[var(--studio-text)]">
       <TopNav
         route={route}
+        arenaFilter={arenaFilter}
         inActiveQuiz={Boolean(activeExamSettings)}
         onNavigate={navigate}
+        onNavigateArena={navigateArena}
         onQuickPlay={() => navigate('easy-quizzes')}
         onOpenRegister={() => setRegisterOpen(true)}
         onOpenHowToPlay={() => setHowToPlayOpen(true)}
@@ -139,6 +214,14 @@ function ArcadeShell() {
         <ErrorBoundary onGoHome={() => navigate('home')} onReportError={reportError}>
           {activeGame ? (
             <>
+              {ActiveNewMiniGame && (
+                <ActiveNewMiniGame
+                  onExit={() => setActiveGame(null)}
+                  onNextChallenge={(nextId) => launchGame(nextId)}
+                  onOpenLeaderboard={(gid) => openPlaygroundLeaderboard(gid)}
+                  onGoHome={() => navigate('home')}
+                />
+              )}
               {activeGame === 'iq-quiz' && (
                 <EngineeringIQQuiz
                   initialMode={iqMode}
@@ -187,30 +270,35 @@ function ArcadeShell() {
                   onOpenEasyQuiz={() => navigate('easy-quizzes')}
                   onOpenAutoEngineer={() => {
                     setLoadedCreation(null);
+                    setInitialCarTrackMode(null);
                     navigate('auto-engineer');
                   }}
                   onOpenPhoneDesigner={() => {
                     setLoadedCreation(null);
+                    setInitialPhoneTestLab(false);
                     navigate('phone-designer');
                   }}
-                  onOpenArena={() => navigate('arcade')}
+                  onOpenArena={() => navigateArena('all')}
                   onOpenExamStudio={() => navigate('quiz-studio')}
                   onResumeDraft={(draft) => resumeExamDraft(draft)}
                   onOpenTrophyRoom={() => navigate('leaderboard')}
                   onOpenCreation={openCreationInStudio}
+                  onLaunchMiniGame={(gid) => launchGame(gid)}
+                  onOpenSimulator={openSimulator}
+                  onOpenLeaderboard={(gid) => openPlaygroundLeaderboard(gid)}
                 />
               )}
               {route === 'easy-quizzes' && (
                 <EasyQuizPage
                   onOpenAdvancedStudio={() => navigate('quiz-studio')}
-                  onOpenArena={() => navigate('arcade')}
+                  onOpenArena={() => navigateArena('all')}
                   onOpenLeaderboard={() => navigate('leaderboard')}
                   onRequireRegister={() => setRegisterOpen(true)}
                 />
               )}
               {route === 'auto-engineer' && (
                 <AutoEngineerGame
-                  key={loadedCreation?.id || 'new-car'}
+                  key={`${loadedCreation?.id || 'new-car'}-${initialCarTrackMode || 'studio'}`}
                   initialBuild={
                     loadedCreation?.type === 'car'
                       ? (loadedCreation.payload as Partial<CarBuildConfig>)
@@ -218,19 +306,31 @@ function ArcadeShell() {
                   }
                   initialTitle={loadedCreation?.type === 'car' ? loadedCreation.title : null}
                   initialCreationId={loadedCreation?.type === 'car' ? loadedCreation.id : null}
-                  onExit={() => navigate('arcade')}
+                  initialTrackMode={initialCarTrackMode}
+                  onExit={() => {
+                    setInitialCarTrackMode(null);
+                    navigate('arcade');
+                  }}
+                  onOpenLeaderboard={(gid) => openPlaygroundLeaderboard(gid)}
+                  onGoHome={() => navigate('home')}
                 />
               )}
               {route === 'phone-designer' && (
                 <PhoneDesignerGame
-                  key={loadedCreation?.id || 'new-phone'}
+                  key={`${loadedCreation?.id || 'new-phone'}-${initialPhoneTestLab ? 'lab' : 'studio'}`}
                   initialDesign={
                     loadedCreation?.type === 'phone'
                       ? (loadedCreation.payload as Partial<PhoneDesignState>)
                       : null
                   }
                   initialCreationId={loadedCreation?.type === 'phone' ? loadedCreation.id : null}
-                  onExit={() => navigate('arcade')}
+                  initialOpenTestLab={initialPhoneTestLab}
+                  onExit={() => {
+                    setInitialPhoneTestLab(false);
+                    navigate('arcade');
+                  }}
+                  onOpenLeaderboard={(gid) => openPlaygroundLeaderboard(gid)}
+                  onGoHome={() => navigate('home')}
                 />
               )}
               {route === 'quiz-studio' && (
@@ -269,31 +369,44 @@ function ArcadeShell() {
               )}
               {route === 'arcade' && (
                 <ArcadeHubPage
+                  initialTab={arenaFilter}
+                  onTabChange={setArenaFilter}
                   onSelectGame={(g, m) => launchGame(g, m)}
                   onOpenAutoEngineer={() => {
                     setLoadedCreation(null);
+                    setInitialCarTrackMode(null);
                     navigate('auto-engineer');
                   }}
                   onOpenPhoneDesigner={() => {
                     setLoadedCreation(null);
+                    setInitialPhoneTestLab(false);
                     navigate('phone-designer');
                   }}
+                  onOpenSimulator={openSimulator}
+                  onOpenLeaderboard={(gid) => openPlaygroundLeaderboard(gid)}
                 />
               )}
               {route === 'leaderboard' && (
-                <LeaderboardPage onPlayCompete={() => navigate('easy-quizzes')} />
+                <LeaderboardPage
+                  initialPlaygroundGameId={leaderboardGameId}
+                  onPlayCompete={() => navigate('easy-quizzes')}
+                />
               )}
               {route === 'profile' && (
                 <ProfilePage
                   onOpenRegister={() => setRegisterOpen(true)}
                   onPlay={() => navigate('easy-quizzes')}
+                  onOpenArena={() => navigateArena('minigames')}
+                  onLaunchMiniGame={(gid) => launchGame(gid)}
                   onOpenCreation={openCreationInStudio}
                   onOpenAutoEngineer={() => {
                     setLoadedCreation(null);
+                    setInitialCarTrackMode(null);
                     navigate('auto-engineer');
                   }}
                   onOpenPhoneDesigner={() => {
                     setLoadedCreation(null);
+                    setInitialPhoneTestLab(false);
                     navigate('phone-designer');
                   }}
                 />
@@ -308,7 +421,7 @@ function ArcadeShell() {
 
       {!isFullscreenStudio && (
         <footer className="relative z-10 border-t border-[var(--studio-border)] bg-[var(--exam-nav-bg)] py-5 px-4 text-center font-mono-tech text-xs text-[var(--studio-text-muted)]">
-          CG QUIZ STUDIO · LEARN. BUILD. PLAY. CREATE.
+          CG QUIZ STUDIO · ENGINEERING PLAYGROUND · LEARN. BUILD. PLAY. CREATE.
         </footer>
       )}
 

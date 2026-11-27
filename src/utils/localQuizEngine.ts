@@ -7,11 +7,21 @@ import {
   LOGIC_PUZZLES,
 } from '../../shared/minigameData.ts';
 import {
+  computeQuizModeBonus,
+  isValidPlaygroundGameId,
+  TRACK_AND_LAB_GAME_IDS,
+  validatePlaygroundSubmission,
+} from '../../shared/playgroundValidation.ts';
+import {
   ACHIEVEMENTS,
   computeExamLevel,
   computeLevelFromXp,
   getDailyChallengeForDate,
+  getDailyTripleForDate,
+  getMiniGameDef,
   getUnlockedThemesForLevel,
+  getWeeklyEventForDate,
+  PLAYGROUND_MINIGAME_MAP,
 } from '../../shared/progression.ts';
 import { QUESTION_BANK } from '../../shared/questionBank.ts';
 import {
@@ -47,12 +57,16 @@ import type {
   GameModeId,
   GameResultPayload,
   LeaderboardEntry,
+  LeaderboardTimeframe,
   MistakeCategory,
   MistakeRecord,
   PixelThemeId,
   PlayerProfile,
+  PlaygroundLeaderboardEntry,
+  PlaygroundResultPayload,
   PublicExamQuestion,
   QuizMode,
+  QuizPlayMode,
   SavedCreation,
   SmartGameQuestion,
   SpeedClass,
@@ -97,6 +111,7 @@ interface LocalSmartGameSession {
   username: string;
   difficulty: GameDifficultyId;
   category: string;
+  playMode?: QuizPlayMode;
   questions: SmartGameQuestion[];
   startedAt: number;
   status: 'active' | 'completed';
@@ -163,6 +178,36 @@ interface LocalStore {
     xpEarned: number;
     createdAt: string;
   }>;
+  playgroundSessions?: Record<
+    string,
+    {
+      sessionId: string;
+      userId: string;
+      gameId: string;
+      startedAt: number;
+      status: 'active' | 'completed';
+    }
+  >;
+  playgroundResults?: Array<{
+    resultId: string;
+    sessionId: string;
+    userId: string;
+    username: string;
+    className: string;
+    title: string;
+    level: number;
+    xp: number;
+    streakBest: number;
+    gameId: string;
+    score: number;
+    rawMetric: number;
+    completionTimeMs: number;
+    accuracy: number;
+    won: boolean;
+    xpEarned: number;
+    createdAt: string;
+  }>;
+  dailyTripleClaims?: string[];
 }
 
 function emptyStore(): LocalStore {
@@ -181,6 +226,9 @@ function emptyStore(): LocalStore {
     customQuestions: [],
     creations: [],
     simulatorResults: [],
+    playgroundSessions: {},
+    playgroundResults: [],
+    dailyTripleClaims: [],
   };
 }
 
@@ -1684,9 +1732,10 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
       ? String(body.difficulty ?? 'easy').toLowerCase()
       : 'easy') as GameDifficultyId;
     const category = String(body.category ?? 'all').trim() || 'all';
+    const playMode = String(body.playMode ?? 'normal').trim() as QuizPlayMode;
     const questionCount = Math.max(5, Math.min(25, Math.round(Number(body.questionCount ?? 10))));
     const rawLimit = Number(body.timeLimitSeconds ?? 0);
-    const timeLimitSeconds = rawLimit > 0 ? Math.max(30, Math.min(3600, Math.round(rawLimit))) : 0;
+    const timeLimitSeconds = rawLimit > 0 ? Math.max(20, Math.min(3600, Math.round(rawLimit))) : 0;
 
     if (!store.players[userId]) {
       store.players[userId] = {
@@ -1714,6 +1763,7 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
       username: store.players[userId].name,
       difficulty,
       category,
+      playMode,
       questions: selected,
       startedAt: Date.now(),
       status: 'active',
@@ -1728,6 +1778,7 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
       difficulty,
       difficultyConfig: diffCfg,
       category,
+      playMode,
       questionCount: selected.length,
       marksPerCorrect: diffCfg.marksPerCorrect,
       timeLimitSeconds,
@@ -1815,19 +1866,62 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
 
     session.status = 'completed';
     const totalQuestions = Math.max(1, session.questions.length);
-    const score = correctAnswers * marksPerCorrect;
-    const maxPossibleScore = totalQuestions * marksPerCorrect;
-    const accuracy = Math.round((correctAnswers / totalQuestions) * 1000) / 10;
+    const playMode = (session.playMode || String(body.playMode ?? 'normal')) as QuizPlayMode;
     const completionTime = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
+    const bonus = computeQuizModeBonus({
+      playMode,
+      correctAnswers,
+      totalQuestions,
+      maxStreak,
+      completionTime,
+      marksPerCorrect,
+    });
+    const score = bonus.totalScore;
+    const maxPossibleScore =
+      playMode === 'normal'
+        ? totalQuestions * marksPerCorrect
+        : totalQuestions * marksPerCorrect + Math.round(marksPerCorrect * 4);
+    const accuracy = Math.round((correctAnswers / totalQuestions) * 1000) / 10;
     const xpEarned = Math.max(10, Math.round(score * 0.5) + (accuracy === 100 ? 40 : 0));
     const nowIso = new Date().toISOString();
+    const todayStr = nowIso.slice(0, 10);
     const resultId = `gr_local_${Date.now()}`;
 
     const p = store.players[userId];
     let leveledUp = false;
+    const unlockedAchievements: string[] = [];
     if (p) {
       const prevLvl = p.level;
-      p.xp += xpEarned;
+      store.dailyTripleClaims ??= [];
+      let tripleXp = 0;
+      const triple = getDailyTripleForDate(todayStr);
+      const qKey = `${userId}:${todayStr}:quiz`;
+      if (
+        (playMode === 'daily' ||
+          ((session.category === triple.quiz.categoryId || session.category === 'all') &&
+            totalQuestions >= 10 &&
+            accuracy >= 70)) &&
+        !store.dailyTripleClaims.includes(qKey)
+      ) {
+        store.dailyTripleClaims.push(qKey);
+        tripleXp = triple.quiz.xpReward;
+      }
+
+      const candidateAchs = ['first_run', 'first_quiz', 'competitor'];
+      if (maxStreak >= 5) candidateAchs.push('streak_master');
+      if (maxStreak >= 10) candidateAchs.push('streak_10');
+      if (accuracy === 100 && totalQuestions >= 5) candidateAchs.push('perfect_run');
+      let achBonus = 0;
+      for (const a of candidateAchs) {
+        if (!p.achievements.includes(a)) {
+          p.achievements.push(a);
+          unlockedAchievements.push(a);
+          const def = ACHIEVEMENTS.find((x) => x.id === a);
+          if (def) achBonus += def.xpBonus;
+        }
+      }
+
+      p.xp += xpEarned + tripleXp + achBonus;
       p.gamesPlayed += 1;
       p.streakBest = Math.max(p.streakBest, maxStreak);
       const lvl = computeLevelFromXp(p.xp);
@@ -2062,6 +2156,330 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
       top3: rankedAll.slice(0, 3),
       entries: entries.slice(0, 100),
       currentUserEntry: userId ? rankedAll.find((e) => e.userId === userId) || null : null,
+    });
+  }
+
+  const buildLocalPlaygroundLeaderboard = (opts: {
+    gameId: string;
+    timeframe: LeaderboardTimeframe;
+    search: string;
+    userId: string;
+  }) => {
+    const now = Date.now();
+    const todayPrefix = new Date(now).toISOString().slice(0, 10);
+    const weekCutoff = new Date(now - 7 * 86400000).toISOString();
+    const monthCutoff = new Date(now - 30 * 86400000).toISOString();
+    const rows = (store.playgroundResults || []).filter((r) => {
+      if (opts.gameId !== 'all' && r.gameId !== opts.gameId) return false;
+      if (opts.timeframe === 'daily' && !r.createdAt.startsWith(todayPrefix)) return false;
+      if (opts.timeframe === 'weekly' && r.createdAt < weekCutoff) return false;
+      if (opts.timeframe === 'monthly' && r.createdAt < monthCutoff) return false;
+      return true;
+    });
+
+    const byUser = new Map<
+      string,
+      {
+        latest: (typeof rows)[number];
+        bestScore: number;
+        totalPoints: number;
+        gamesPlayed: number;
+        wins: number;
+        accSum: number;
+        bestTimeMs: number;
+      }
+    >();
+    for (const r of rows) {
+      const cur = byUser.get(r.userId);
+      if (!cur) {
+        byUser.set(r.userId, {
+          latest: r,
+          bestScore: r.score,
+          totalPoints: r.score,
+          gamesPlayed: 1,
+          wins: r.won ? 1 : 0,
+          accSum: r.accuracy,
+          bestTimeMs: r.completionTimeMs,
+        });
+      } else {
+        cur.bestScore = Math.max(cur.bestScore, r.score);
+        cur.totalPoints += r.score;
+        cur.gamesPlayed += 1;
+        cur.wins += r.won ? 1 : 0;
+        cur.accSum += r.accuracy;
+        cur.bestTimeMs = Math.min(cur.bestTimeMs, r.completionTimeMs);
+        if (r.createdAt > cur.latest.createdAt) cur.latest = r;
+      }
+    }
+
+    const rankedAll: PlaygroundLeaderboardEntry[] = [...byUser.values()]
+      .sort((a, b) =>
+        opts.gameId === 'all'
+          ? b.totalPoints - a.totalPoints || b.bestScore - a.bestScore
+          : b.bestScore - a.bestScore || a.bestTimeMs - b.bestTimeMs
+      )
+      .map((x, idx) => ({
+        rank: idx + 1,
+        prevRank: null,
+        rankDelta: 0,
+        userId: x.latest.userId,
+        username: x.latest.username,
+        className: x.latest.className,
+        title: x.latest.title,
+        level: x.latest.level,
+        xp: x.latest.xp,
+        score: opts.gameId === 'all' ? x.totalPoints : x.bestScore,
+        bestScore: x.bestScore,
+        totalPoints: x.totalPoints,
+        gamesPlayed: x.gamesPlayed,
+        winRate: Math.round((x.wins / x.gamesPlayed) * 1000) / 10,
+        streak: x.latest.streakBest,
+        accuracy: Math.round((x.accSum / x.gamesPlayed) * 10) / 10,
+        completionTimeMs: x.bestTimeMs,
+        gameId: x.latest.gameId,
+        createdAt: x.latest.createdAt,
+      }));
+    const s = opts.search.trim().toLowerCase();
+    return {
+      gameId: opts.gameId,
+      timeframe: opts.timeframe,
+      totalPlayers: rankedAll.length,
+      top3: rankedAll.slice(0, 3),
+      entries: (s ? rankedAll.filter((e) => e.username.toLowerCase().includes(s)) : rankedAll).slice(0, 100),
+      currentUserEntry: opts.userId ? rankedAll.find((e) => e.userId === opts.userId) || null : null,
+    };
+  };
+
+  if (pathname === '/api/playground/start' && method === 'POST') {
+    const userId = String(body.userId ?? '').trim();
+    const gameId = String(body.gameId ?? '').trim();
+    if (!gameId || !isValidPlaygroundGameId(gameId)) {
+      return fail(`Invalid mini-game identifier: ${gameId || 'missing'}`, 400);
+    }
+    const sessionId = `pgs_local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const startedAt = Date.now();
+    store.playgroundSessions ??= {};
+    store.playgroundSessions[sessionId] = {
+      sessionId,
+      userId: userId || 'guest_practice',
+      gameId,
+      startedAt,
+      status: 'active',
+    };
+    writeStore(store);
+    const board = buildLocalPlaygroundLeaderboard({
+      gameId,
+      timeframe: 'global',
+      search: '',
+      userId,
+    });
+    return ok({
+      sessionId,
+      gameId,
+      startedAt,
+      personalBest: board.currentUserEntry?.bestScore ?? null,
+      globalRank: board.currentUserEntry?.rank ?? null,
+      totalPlayers: board.totalPlayers,
+    });
+  }
+
+  if (pathname === '/api/playground/submit' && method === 'POST') {
+    const sessionId = String(body.sessionId ?? '').trim();
+    const userId = String(body.userId ?? '').trim();
+    const gameIdBody = String(body.gameId ?? '').trim();
+    if (!userId) return fail('Sign in with a registered player handle to submit ranked scores.', 401);
+    const p = store.players[userId];
+    if (!p) return fail('Player account not found.', 401);
+
+    store.playgroundSessions ??= {};
+    store.playgroundResults ??= [];
+    const session = store.playgroundSessions[sessionId];
+    if (!session) return fail('Playground session not found.', 404);
+    if (session.userId !== userId) return fail('Forbidden: session belongs to another player.', 403);
+    if (session.status !== 'active') return fail('Duplicate submission blocked.', 409);
+
+    const targetGameId = gameIdBody || session.gameId;
+    const check = validatePlaygroundSubmission({
+      gameId: targetGameId,
+      score: Number(body.score ?? 0),
+      rawMetric: body.rawMetric !== undefined ? Number(body.rawMetric) : undefined,
+      completionTimeMs: body.completionTimeMs !== undefined ? Number(body.completionTimeMs) : undefined,
+      accuracy: body.accuracy !== undefined ? Number(body.accuracy) : 100,
+      startedAt: session.startedAt,
+    });
+    if (!check.valid) return fail(check.reason || 'Anti-cheat validation rejected score.', 400);
+
+    session.status = 'completed';
+    const prevGlobalRank =
+      buildLocalPlaygroundLeaderboard({ gameId: 'all', timeframe: 'global', search: '', userId }).currentUserEntry
+        ?.rank ?? null;
+    const prevGameRank =
+      buildLocalPlaygroundLeaderboard({ gameId: targetGameId, timeframe: 'global', search: '', userId }).currentUserEntry
+        ?.rank ?? null;
+    const previousBestScore = store.playgroundResults
+      .filter((r) => r.userId === userId && r.gameId === targetGameId)
+      .reduce<number | null>((mx, r) => (mx === null ? r.score : Math.max(mx, r.score)), null);
+    const isPersonalBest = previousBestScore === null || check.sanitizedScore > previousBestScore;
+    const won = body.won !== false && check.sanitizedScore > 0;
+    const baseXp = Math.max(15, Math.min(220, Math.round(check.sanitizedScore * 0.08) + (won ? 20 : 5)));
+    const nowIso = new Date().toISOString();
+    const todayStr = nowIso.slice(0, 10);
+
+    store.dailyTripleClaims ??= [];
+    let dailyBonus = 0;
+    const triple = getDailyTripleForDate(todayStr);
+    const mgKey = `${userId}:${todayStr}:minigame`;
+    if (won && targetGameId === triple.miniGame.gameId && check.sanitizedScore >= triple.miniGame.targetScore && !store.dailyTripleClaims.includes(mgKey)) {
+      store.dailyTripleClaims.push(mgKey);
+      dailyBonus += triple.miniGame.xpReward;
+    }
+    const bKey = `${userId}:${todayStr}:builder`;
+    if (won && TRACK_AND_LAB_GAME_IDS.has(targetGameId) && !store.dailyTripleClaims.includes(bKey)) {
+      store.dailyTripleClaims.push(bKey);
+      dailyBonus += triple.builder.xpReward;
+    }
+
+    const candidateAchs: string[] = ['first_run'];
+    if (PLAYGROUND_MINIGAME_MAP.has(targetGameId as GameModeId)) candidateAchs.push('first_minigame');
+    if (TRACK_AND_LAB_GAME_IDS.has(targetGameId)) candidateAchs.push('first_build');
+    if (isPersonalBest && previousBestScore !== null) candidateAchs.push('new_pb');
+    if (check.sanitizedAccuracy === 100 && won) candidateAchs.push('perfect_run');
+
+    const unlockedNow: string[] = [];
+    let achBonus = 0;
+    for (const a of candidateAchs) {
+      if (!p.achievements.includes(a)) {
+        p.achievements.push(a);
+        unlockedNow.push(a);
+        const def = ACHIEVEMENTS.find((x) => x.id === a);
+        if (def) achBonus += def.xpBonus;
+      }
+    }
+
+    const prevLevel = p.level;
+    p.xp += baseXp + dailyBonus + achBonus;
+    p.gamesPlayed += 1;
+    const lvl = computeLevelFromXp(p.xp);
+    p.level = lvl.level;
+    p.title = lvl.title;
+    p.unlockedThemes = getUnlockedThemesForLevel(lvl.level);
+
+    const resultId = `pgr_local_${Date.now()}`;
+    store.playgroundResults.push({
+      resultId,
+      sessionId,
+      userId,
+      username: p.name,
+      className: p.className,
+      title: p.title,
+      level: p.level,
+      xp: p.xp,
+      streakBest: p.streakBest,
+      gameId: targetGameId,
+      score: check.sanitizedScore,
+      rawMetric: check.sanitizedMetric,
+      completionTimeMs: check.sanitizedTimeMs,
+      accuracy: check.sanitizedAccuracy,
+      won,
+      xpEarned: baseXp + dailyBonus,
+      createdAt: nowIso,
+    });
+    writeStore(store);
+
+    const globalAfter = buildLocalPlaygroundLeaderboard({
+      gameId: 'all',
+      timeframe: 'global',
+      search: '',
+      userId,
+    });
+    const gameAfter = buildLocalPlaygroundLeaderboard({
+      gameId: targetGameId,
+      timeframe: 'global',
+      search: '',
+      userId,
+    });
+    const def = getMiniGameDef(targetGameId as GameModeId);
+
+    const payload: PlaygroundResultPayload = {
+      resultId,
+      sessionId,
+      gameId: targetGameId,
+      userId,
+      username: p.name,
+      score: check.sanitizedScore,
+      rawMetric: check.sanitizedMetric,
+      completionTimeMs: check.sanitizedTimeMs,
+      accuracy: check.sanitizedAccuracy,
+      won,
+      isPersonalBest,
+      previousBestScore,
+      globalRank: globalAfter.currentUserEntry?.rank ?? null,
+      prevGlobalRank,
+      gameRank: gameAfter.currentUserEntry?.rank ?? null,
+      prevGameRank,
+      totalGamePlayers: gameAfter.totalPlayers,
+      xpEarned: baseXp + dailyBonus,
+      leveledUp: lvl.level > prevLevel,
+      unlockedAchievements: unlockedNow,
+      funFact: def?.funFacts[0] || 'Engineering mastery comes from repeatable testing and calibration.',
+      player: { ...p },
+      createdAt: nowIso,
+    };
+    return ok(payload);
+  }
+
+  if (pathname === '/api/playground/leaderboard' && method === 'GET') {
+    const rawTf = (params.get('timeframe') || 'global').toLowerCase();
+    const timeframe: LeaderboardTimeframe =
+      rawTf === 'daily' || rawTf === 'weekly' || rawTf === 'monthly' ? rawTf : 'global';
+    return ok(
+      buildLocalPlaygroundLeaderboard({
+        gameId: params.get('gameId') || 'all',
+        timeframe,
+        search: params.get('search') || '',
+        userId: params.get('userId') || '',
+      })
+    );
+  }
+
+  if (pathname === '/api/playground/events' && method === 'GET') {
+    const userId = (params.get('userId') || '').trim();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const claims = store.dailyTripleClaims || [];
+    const flags = {
+      quiz: Boolean(userId && claims.includes(`${userId}:${todayStr}:quiz`)),
+      miniGame: Boolean(userId && claims.includes(`${userId}:${todayStr}:minigame`)),
+      builder: Boolean(userId && claims.includes(`${userId}:${todayStr}:builder`)),
+    };
+    const personalBests: Record<string, { bestScore: number; bestTimeMs: number; plays: number }> = {};
+    if (userId) {
+      for (const r of store.playgroundResults || []) {
+        if (r.userId !== userId) continue;
+        const prev = personalBests[r.gameId];
+        if (!prev) {
+          personalBests[r.gameId] = { bestScore: r.score, bestTimeMs: r.completionTimeMs, plays: 1 };
+        } else {
+          prev.bestScore = Math.max(prev.bestScore, r.score);
+          prev.bestTimeMs = Math.min(prev.bestTimeMs, r.completionTimeMs);
+          prev.plays += 1;
+        }
+      }
+    }
+    const dailyTriple = getDailyTripleForDate(todayStr, flags);
+    const weeklyEvent = getWeeklyEventForDate(todayStr);
+    const weeklyBoard = buildLocalPlaygroundLeaderboard({
+      gameId: weeklyEvent.featuredGameId,
+      timeframe: 'weekly',
+      search: '',
+      userId,
+    });
+    return ok({
+      date: todayStr,
+      dailyTriple,
+      weeklyEvent,
+      weeklyStandings: weeklyBoard.entries.slice(0, 10),
+      personalBests,
+      favoriteGameId: Object.entries(personalBests).sort((a, b) => b[1].plays - a[1].plays)[0]?.[0] ?? null,
     });
   }
 

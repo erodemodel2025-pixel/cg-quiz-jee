@@ -262,6 +262,45 @@ db.exec(`
     is_test INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
   );
+
+  /* ============================================================
+     ENGINEERING PLAYGROUND: 12 Mini-Games & Track Telemetry
+     ============================================================ */
+  CREATE TABLE IF NOT EXISTS playground_sessions (
+    session_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    game_id TEXT NOT NULL,
+    started_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    is_test INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS playground_results (
+    result_id TEXT PRIMARY KEY,
+    session_id TEXT UNIQUE NOT NULL,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    game_id TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    raw_metric REAL NOT NULL DEFAULT 0,
+    completion_time_ms INTEGER NOT NULL DEFAULT 0,
+    accuracy REAL NOT NULL DEFAULT 100,
+    won INTEGER NOT NULL DEFAULT 1,
+    xp_earned INTEGER NOT NULL DEFAULT 0,
+    meta_json TEXT NOT NULL DEFAULT '{}',
+    is_test INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS daily_triple_claims (
+    user_id TEXT NOT NULL,
+    challenge_date TEXT NOT NULL,
+    slot TEXT NOT NULL,
+    xp_awarded INTEGER NOT NULL DEFAULT 0,
+    completed_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, challenge_date, slot)
+  );
 `);
 
 // Safe index creation for fast query/analytics performance
@@ -274,6 +313,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_game_results_user ON game_results(user_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_game_results_score ON game_results(is_test, score DESC, accuracy DESC, completion_time ASC);
   CREATE INDEX IF NOT EXISTS idx_simulator_results_user ON simulator_results(user_id, simulator, mission_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_playground_results_game ON playground_results(game_id, is_test, score DESC, completion_time_ms ASC);
+  CREATE INDEX IF NOT EXISTS idx_playground_results_user ON playground_results(user_id, created_at DESC);
 `);
 
 // Safe additive column migration for per-session option-shuffled question snapshots
